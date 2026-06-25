@@ -1,10 +1,16 @@
 /**
  * Shared analytics config (CORE FILE — overwritten on blueprint re-sync).
  *
- * The Amplitude API key is read from an Expo public env var so it differs per
- * app/environment without code changes. Set EXPO_PUBLIC_AMPLITUDE_KEY in .env.
+ * Both values come from Expo public env vars so they differ per app without code
+ * changes:
+ *   EXPO_PUBLIC_AMPLITUDE_KEY          — the project API key
+ *   EXPO_PUBLIC_AMPLITUDE_SERVER_ZONE  — 'US' (default) or 'EU'. MUST match your
+ *     Amplitude project's data region, or every event is silently dropped.
  */
 export const ANALYTICS_API_KEY = process.env.EXPO_PUBLIC_AMPLITUDE_KEY ?? '';
+
+const SERVER_ZONE: 'US' | 'EU' =
+  process.env.EXPO_PUBLIC_AMPLITUDE_SERVER_ZONE === 'EU' ? 'EU' : 'US';
 
 /**
  * Privacy-leaning defaults shared by every app.
@@ -14,6 +20,7 @@ export const ANALYTICS_API_KEY = process.env.EXPO_PUBLIC_AMPLITUDE_KEY ?? '';
  * - IP capture is disabled by default.
  */
 export const ANALYTICS_OPTIONS = {
+  serverZone: SERVER_ZONE,
   defaultTracking: {
     sessions: true,
     appLifecycles: false,
@@ -23,5 +30,4 @@ export const ANALYTICS_OPTIONS = {
   trackingOptions: {
     ipAddress: false,
   },
-  // serverZone: 'EU', // region is not a constraint for us; default is US.
 };
