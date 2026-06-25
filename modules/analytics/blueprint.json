@@ -30,7 +30,9 @@
     {"from": "template/lib/analytics/client.ts", "to": "lib/analytics/client.ts", "ownership": "core"},
     {"from": "template/lib/analytics/provider.tsx", "to": "lib/analytics/provider.tsx", "ownership": "core"},
     {"from": "template/lib/analytics/index.ts", "to": "lib/analytics/index.ts", "ownership": "core"},
-    {"from": "template/lib/analytics/events.ts", "to": "lib/analytics/events.ts", "ownership": "app"}
+    {"from": "template/lib/analytics/events.ts", "to": "lib/analytics/events.ts", "ownership": "app"},
+    {"from": "template/.github/workflows/analytics-check.yml", "to": ".github/workflows/analytics-check.yml", "ownership": "core"},
+    {"from": "template/.github/pull_request_template.md", "to": ".github/pull_request_template.md", "ownership": "app"}
   ],
   "wiring": {
     "wrapRoot": {
@@ -40,9 +42,18 @@
       "entryCandidates": ["app/_layout.tsx", "App.tsx", "src/App.tsx", "index.tsx"]
     }
   },
+  "governance": {
+    "policy": "Every PR that adds or changes user-facing behaviour must add/update events (see event-guidelines.md). Refactors, bugfixes, styling, docs, tests, and config are exempt.",
+    "agentInstructions": {
+      "appendFrom": "template/analytics-authoring-rule.md",
+      "to": ["CLAUDE.md", "AGENTS.md"],
+      "note": "Append (never overwrite) to whichever agent-instructions file the app uses; create CLAUDE.md if neither exists. The snippet is fenced with BEGIN/END markers so it can be re-synced in place."
+    },
+    "ciCheck": "Soft, non-blocking PR reminder (.github/workflows/analytics-check.yml). It cannot verify the correct events were added; human review + the PR checklist are the real gate."
+  },
   "verify": [
     "EXPO_PUBLIC_AMPLITUDE_KEY is set in .env",
     "App runs on a dev/standalone build (Amplitude does not work in Expo Go)",
-    "The 'app_opened' event appears in Amplitude under User Look-Up / Events within a minute"
+    "The 'App Opened' event appears in Amplitude under User Look-Up / Events within a minute"
   ]
 }

@@ -46,7 +46,7 @@ export function track(event: string, props?: Record<string, unknown>): void {
 
 /** Tracked manually as an event because Amplitude screenViews are disabled. */
 export function screen(name: string, props?: Record<string, unknown>): void {
-  track('screen_viewed', {screen: name, ...props});
+  track('Screen Viewed', {screen: name, ...props});
 }
 
 export function setUserProperties(props: Record<string, unknown>): void {

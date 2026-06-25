@@ -25,15 +25,15 @@ export function AnalyticsProvider({children}: {children: React.ReactNode}) {
 
   useEffect(() => {
     client.init();
-    client.track('app_opened');
+    client.track('App Opened');
 
     const subscription = AppState.addEventListener('change', next => {
       const prev = appState.current;
       appState.current = next;
       if (/inactive|background/.test(prev) && next === 'active') {
-        client.track('app_foregrounded');
+        client.track('App Foregrounded');
       } else if (prev === 'active' && /inactive|background/.test(next)) {
-        client.track('app_backgrounded');
+        client.track('App Backgrounded');
         void client.flush();
       }
     });

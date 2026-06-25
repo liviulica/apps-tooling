@@ -13,6 +13,7 @@ Vendors the `analytics` blueprint from the **apps-tooling** repo into the curren
 - `@amplitude/analytics-react-native` installed (peer dep `@react-native-async-storage/async-storage`).
 - `<AnalyticsProvider>` wrapping the app's root component.
 - `EXPO_PUBLIC_AMPLITUDE_KEY` in `.env`.
+- Governance: a PR template + a soft "analytics reminder" GitHub Action (`.github/`), and the authoring rule appended to the app's `CLAUDE.md` / `AGENTS.md`.
 
 ## Steps
 
@@ -30,9 +31,11 @@ Create a todo per step and work through them in order.
 
 6. **Set up the API key.** Add `EXPO_PUBLIC_AMPLITUDE_KEY=` to `.env` (create `.env` if needed; ensure `.env` is gitignored). Prompt the user with `blueprint.env.EXPO_PUBLIC_AMPLITUDE_KEY.prompt` and paste their key in. If they don't have it yet, leave the placeholder — the wrapper no-ops safely without a key.
 
-7. **Leave events to the app.** Do NOT instrument the app's screens. The `events.ts` stub plus the auto lifecycle events are the starting point; the app owner adds events themselves. Optionally add 1–2 example `track()` calls if the user asks.
+7. **Install governance.** The `.github/` files in `blueprint.files` (PR template + the soft analytics-reminder workflow) are copied by step 3. Then **append** `blueprint.governance.agentInstructions.appendFrom` (`analytics-authoring-rule.md`) to the app's `CLAUDE.md` (or `AGENTS.md` if that's what the app uses; create `CLAUDE.md` if neither exists). It is fenced with `BEGIN/END analytics-authoring-rule` markers — replace the block in place on re-sync, never duplicate it.
 
-8. **Verify.** Typecheck (`npx tsc --noEmit`) to confirm the wrapper compiles. Then walk the user through `blueprint.verify`: set the key, run a dev build, and confirm `app_opened` lands in Amplitude.
+8. **Events follow the guidelines, not this skill.** Do NOT instrument the app's screens here. The `events.ts` stub + automatic lifecycle events are the starting point; the app owner adds events per `event-guidelines.md` (Object + Past-tense Verb, Title Case; snake_case props; no PII). Optionally add 1–2 example `track()` calls if asked.
+
+9. **Verify.** Typecheck (`npx tsc --noEmit`) to confirm the wrapper compiles. Then walk the user through `blueprint.verify`: set the key, run a dev build, and confirm `App Opened` lands in Amplitude.
 
 ## Notes
 

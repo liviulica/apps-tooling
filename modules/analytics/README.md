@@ -6,7 +6,7 @@ analytics only (events / funnels / retention) — no crash reporting.
 
 ## Why a wrapper
 
-App code calls `track('book_opened', {...})`, never Amplitude directly. The
+App code calls `track('Book Opened', {...})`, never Amplitude directly. The
 provider lives in one file (`client.ts`), so swapping or upgrading Amplitude is a
 change here, not across the app. See [docs/analytics-research.md in DailyBook](../../../daily-book/docs/analytics-research.md)
 for why Amplitude was chosen.
@@ -33,15 +33,19 @@ Manual equivalent:
 | `provider.tsx` | core | `<AnalyticsProvider>` + `useAnalytics()` + lifecycle events |
 | `index.ts` | core | Public barrel export |
 | `events.ts` | **app** | The app's event taxonomy. Edit this; re-sync won't touch it |
+| `.github/workflows/analytics-check.yml` | core | Soft PR reminder when feature code changes without analytics |
+| `.github/pull_request_template.md` | app | Analytics checklist item (created once, not clobbered) |
 
-"core" files are overwritten on re-sync; the "app" file is never clobbered.
+"core" files are overwritten on re-sync; "app" files are never clobbered.
+`analytics-authoring-rule.md` is not copied — it's appended to the app's
+`CLAUDE.md` / `AGENTS.md`.
 
 ## Usage in app code
 
 ```ts
 import {track, useAnalytics} from './lib/analytics';
 
-track('book_opened', {book_id: id, source: 'gutenberg'});
+track('Book Opened', {book_id: id, source: 'gutenberg'});
 
 // or inside a component
 const {screen} = useAnalytics();
@@ -50,6 +54,21 @@ screen('Library');
 
 Add your events to the `AnalyticsEvent` union in `events.ts` first — it's typed,
 so unknown event names fail at compile time.
+
+## Conventions & governance
+
+Naming, properties, and the "instrument as you build" policy live in
+**[event-guidelines.md](./event-guidelines.md)** — the single source of truth. In
+short: events are `Object + Past-tense Verb` in Title Case (`Book Opened`),
+properties are snake_case, and no PII or free text is ever sent.
+
+Installed into each app so the policy is enforced, not just stated:
+- **`analytics-authoring-rule.md`** — appended to the app's `CLAUDE.md` /
+  `AGENTS.md` so AI-assisted work instruments events at authoring time.
+- **`.github/pull_request_template.md`** — an analytics checklist item.
+- **`.github/workflows/analytics-check.yml`** — a soft, non-blocking PR reminder
+  when feature code changes without touching analytics. It can't verify the
+  *right* events were added; human review + the checklist are the real gate.
 
 ## Gotcha: async-storage version
 
