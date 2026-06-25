@@ -1,0 +1,48 @@
+{
+  "name": "analytics",
+  "displayName": "Analytics (Amplitude)",
+  "description": "Product analytics via Amplitude, behind a thin app-owned wrapper. Product analytics only — no crash reporting.",
+  "version": "1.0.0",
+  "provider": "amplitude",
+  "install": {
+    "expo": ["@amplitude/analytics-react-native"],
+    "peer": ["@react-native-async-storage/async-storage"],
+    "ios": {"podInstall": true},
+    "npmOverrides": {
+      "@amplitude/analytics-react-native": {
+        "@react-native-async-storage/async-storage": "$@react-native-async-storage/async-storage"
+      }
+    },
+    "notes": [
+      "Amplitude depends on @react-native-async-storage/async-storage@^1.x. Apps on async-storage 2.x MUST add the npmOverrides above to package.json, or npm installs a duplicate native module (two RNCAsyncStorage copies) that breaks the iOS/Android build.",
+      "Add the override BEFORE installing Amplitude. If Amplitude was already installed, the stale lockfile keeps the nested copy: delete the nested lock entry + node_modules/@amplitude/analytics-react-native/node_modules and run `npm install`, then confirm with `npm ls @react-native-async-storage/async-storage` (should show one version, 'deduped')."
+    ]
+  },
+  "env": {
+    "EXPO_PUBLIC_AMPLITUDE_KEY": {
+      "required": true,
+      "prompt": "Paste your Amplitude project API key (Amplitude > Settings > Projects > [project] > API Key):",
+      "description": "Amplitude project API key. Public client key — safe to ship in the app bundle."
+    }
+  },
+  "files": [
+    {"from": "template/lib/analytics/config.ts", "to": "lib/analytics/config.ts", "ownership": "core"},
+    {"from": "template/lib/analytics/client.ts", "to": "lib/analytics/client.ts", "ownership": "core"},
+    {"from": "template/lib/analytics/provider.tsx", "to": "lib/analytics/provider.tsx", "ownership": "core"},
+    {"from": "template/lib/analytics/index.ts", "to": "lib/analytics/index.ts", "ownership": "core"},
+    {"from": "template/lib/analytics/events.ts", "to": "lib/analytics/events.ts", "ownership": "app"}
+  ],
+  "wiring": {
+    "wrapRoot": {
+      "component": "AnalyticsProvider",
+      "importFrom": "./lib/analytics",
+      "placement": "outermost",
+      "entryCandidates": ["app/_layout.tsx", "App.tsx", "src/App.tsx", "index.tsx"]
+    }
+  },
+  "verify": [
+    "EXPO_PUBLIC_AMPLITUDE_KEY is set in .env",
+    "App runs on a dev/standalone build (Amplitude does not work in Expo Go)",
+    "The 'app_opened' event appears in Amplitude under User Look-Up / Events within a minute"
+  ]
+}
