@@ -1,0 +1,148 @@
+{
+  "name": "accounts",
+  "displayName": "Accounts (Supabase)",
+  "description": "Accounts + cross-device sync via Supabase, behind a thin app-owned wrapper. Native Sign in with Apple (iOS), native Google sign-in, email OTP, namespace sync engine, share-by-reference tables, App-Store-compliant account deletion, RevenueCat webhook stub.",
+  "version": "0.1.0",
+  "provider": "supabase",
+  "install": {
+    "expo": [
+      "expo-apple-authentication",
+      "@react-native-google-signin/google-signin"
+    ],
+    "npm": ["@supabase/supabase-js", "react-native-url-polyfill"],
+    "peer": ["@react-native-async-storage/async-storage"],
+    "ios": {"podInstall": true},
+    "notes": [
+      "Requires a development build (native sign-in modules do not run in Expo Go).",
+      "Check `npm ls @react-native-async-storage/async-storage` after install: exactly one version. If a dependency pins another copy, add an override in package.json (see the analytics module's npmOverrides for the pattern).",
+      "expo-apple-authentication is iOS-only. Hide Apple sign-in UI on Android; Google + email OTP cover Android."
+    ]
+  },
+  "env": {
+    "EXPO_PUBLIC_SUPABASE_URL": {
+      "scope": "client",
+      "required": true,
+      "prompt": "Supabase project URL (Dashboard > Settings > API > Project URL):",
+      "description": "Public project URL. Safe to ship in the app bundle."
+    },
+    "EXPO_PUBLIC_SUPABASE_ANON_KEY": {
+      "scope": "client",
+      "required": true,
+      "prompt": "Supabase anon/public API key (Dashboard > Settings > API):",
+      "description": "Public client key. RLS is the security boundary; safe to ship."
+    },
+    "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": {
+      "scope": "client",
+      "required": false,
+      "prompt": "Google OAuth WEB client id (Google Cloud Console > Credentials). Needed for Google sign-in; leave blank to skip:",
+      "description": "The WEB client id (not iOS/Android). The native library exchanges it for tokens Supabase accepts. Public value."
+    },
+    "APPLE_TEAM_ID": {
+      "scope": "server",
+      "required": true,
+      "setVia": "supabase secrets set APPLE_TEAM_ID=...",
+      "description": "Apple developer team id. Function secret only, NEVER in the app bundle or EXPO_PUBLIC_*."
+    },
+    "APPLE_CLIENT_ID": {
+      "scope": "server",
+      "required": true,
+      "setVia": "supabase secrets set APPLE_CLIENT_ID=...",
+      "description": "The iOS bundle identifier (the App ID used for Sign in with Apple). Function secret."
+    },
+    "APPLE_KEY_ID": {
+      "scope": "server",
+      "required": true,
+      "setVia": "supabase secrets set APPLE_KEY_ID=...",
+      "description": "Key id of the Sign in with Apple .p8 key. Function secret."
+    },
+    "APPLE_P8_KEY": {
+      "scope": "server",
+      "required": true,
+      "setVia": "supabase secrets set APPLE_P8_KEY=\"$(cat AuthKey_XXXX.p8)\"",
+      "description": "Full PEM contents of the .p8 private key. Function secret. NEVER commit or bundle."
+    },
+    "RC_WEBHOOK_SECRET": {
+      "scope": "server",
+      "required": false,
+      "setVia": "supabase secrets set RC_WEBHOOK_SECRET=...",
+      "description": "Shared secret for the RevenueCat webhook (payments phase). Also set as the Authorization header value in RevenueCat's webhook config."
+    }
+  },
+  "files": [
+    {"from": "template/lib/accounts/types.ts", "to": "lib/accounts/types.ts", "ownership": "core"},
+    {"from": "template/lib/accounts/config.ts", "to": "lib/accounts/config.ts", "ownership": "core"},
+    {"from": "template/lib/accounts/client.ts", "to": "lib/accounts/client.ts", "ownership": "core"},
+    {"from": "template/lib/accounts/sync.ts", "to": "lib/accounts/sync.ts", "ownership": "core"},
+    {"from": "template/lib/accounts/signin-apple.ts", "to": "lib/accounts/signin-apple.ts", "ownership": "core"},
+    {"from": "template/lib/accounts/signin-google.ts", "to": "lib/accounts/signin-google.ts", "ownership": "core"},
+    {"from": "template/lib/accounts/signin-email.ts", "to": "lib/accounts/signin-email.ts", "ownership": "core"},
+    {"from": "template/lib/accounts/provider.tsx", "to": "lib/accounts/provider.tsx", "ownership": "core"},
+    {"from": "template/lib/accounts/index.ts", "to": "lib/accounts/index.ts", "ownership": "core"},
+    {"from": "template/lib/accounts/sync-registry.ts", "to": "lib/accounts/sync-registry.ts", "ownership": "app"},
+    {"from": "template/components/accounts/SignInSection.tsx", "to": "components/accounts/SignInSection.tsx", "ownership": "app"},
+    {"from": "template/supabase/migrations/0001_accounts_core.sql", "to": "supabase/migrations/0001_accounts_core.sql", "ownership": "core"},
+    {"from": "template/supabase/migrations/0002_shares.sql", "to": "supabase/migrations/0002_shares.sql", "ownership": "core"},
+    {"from": "template/supabase/functions/_shared/apple.ts", "to": "supabase/functions/_shared/apple.ts", "ownership": "core"},
+    {"from": "template/supabase/functions/apple-token-exchange/index.ts", "to": "supabase/functions/apple-token-exchange/index.ts", "ownership": "core"},
+    {"from": "template/supabase/functions/delete-account/index.ts", "to": "supabase/functions/delete-account/index.ts", "ownership": "core"},
+    {"from": "template/supabase/functions/revenuecat-webhook/index.ts", "to": "supabase/functions/revenuecat-webhook/index.ts", "ownership": "core"}
+  ],
+  "native": {
+    "ios": {
+      "usesAppleSignIn": true,
+      "entitlements": {"com.apple.developer.applesignin": ["Default"]},
+      "notes": [
+        "CNG/prebuild apps: set expo.ios.usesAppleSignIn=true in app.json; the expo-apple-authentication plugin writes the entitlement at prebuild.",
+        "Bare apps (git-tracked ios/): add the Sign in with Apple capability in Xcode (Signing & Capabilities) which creates/updates the .entitlements file. EAS capability sync enables it on the App ID at build time."
+      ]
+    },
+    "android": {
+      "intentFilters": [
+        {
+          "purpose": "share links / future OAuth fallback",
+          "note": "Register the app's custom scheme (expo.scheme on CNG; a VIEW intent-filter with android:scheme in AndroidManifest.xml on bare). Native sign-in itself does NOT need it, but share deep links do."
+        }
+      ]
+    }
+  },
+  "backend": {
+    "provider": "supabase",
+    "migrationsDir": "supabase/migrations",
+    "functions": [
+      {"name": "apple-token-exchange", "verifyJwt": true},
+      {"name": "delete-account", "verifyJwt": true},
+      {"name": "revenuecat-webhook", "verifyJwt": false}
+    ],
+    "dashboard": [
+      "Authentication > Providers > Apple: enable; add the iOS bundle id to Client IDs (native flow needs no secret).",
+      "Authentication > Providers > Google: enable; set the WEB client id in Client IDs; enable 'Skip Nonce Check' (the free native library cannot pass a custom nonce).",
+      "Authentication > Providers > Email: enable; ensure the OTP email template contains {{ .Token }} so users get a 6-digit code."
+    ]
+  },
+  "wiring": {
+    "wrapRoot": {
+      "component": "AccountsProvider",
+      "importFrom": "./lib/accounts",
+      "placement": "inside-analytics-above-data-providers",
+      "placementNote": "NOT outermost (analytics owns that). Place directly inside <AnalyticsProvider> and above the app's data/state providers so they can react to auth. Pass onAuthEvent to identify the user in analytics.",
+      "entryCandidates": ["app/_layout.tsx", "App.tsx", "src/App.tsx", "index.tsx"]
+    }
+  },
+  "governance": {
+    "policy": "The account is optional: features must work signed-out. New synced state registers a namespace + merge rule in sync-registry.ts. New user-data tables need RLS + cascade + delete-account coverage.",
+    "agentInstructions": {
+      "appendFrom": "template/accounts-authoring-rule.md",
+      "to": ["CLAUDE.md", "AGENTS.md"],
+      "note": "Append (never overwrite); fenced with BEGIN/END markers for in-place re-sync."
+    }
+  },
+  "verify": [
+    "npx tsc --noEmit passes in the app",
+    "EXPO_PUBLIC_SUPABASE_URL and _ANON_KEY set in .env AND as EAS env vars",
+    "supabase db push applied both migrations; supabase functions deployed (revenuecat-webhook with --no-verify-jwt)",
+    "On a dev build: Apple sign-in (iOS), Google sign-in, and email OTP each produce a session; profiles row auto-created",
+    "apple_credentials row exists after Apple sign-in (token exchange worked)",
+    "Account deletion from the app removes the auth user and cascades all rows",
+    "Sync round-trip: change a registered namespace on device A, relaunch app on device B, value arrives"
+  ]
+}
