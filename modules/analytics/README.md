@@ -70,6 +70,14 @@ Installed into each app so the policy is enforced, not just stated:
   when feature code changes without touching analytics. It can't verify the
   *right* events were added; human review + the checklist are the real gate.
 
+## Gotcha: data region (US vs EU)
+
+Amplitude has separate **US** and **EU** data centers. The SDK defaults to US;
+if your project is in the EU region (`app.eu.amplitude.com`), the US endpoint
+**silently drops every event**. Set `EXPO_PUBLIC_AMPLITUDE_SERVER_ZONE=EU` (the
+wrapper reads it into `serverZone`). Telltale symptom: the app runs, the key is
+in the build, but no data ever arrives in Amplitude.
+
 ## Gotcha: async-storage version
 
 Amplitude's RN SDK depends on `@react-native-async-storage/async-storage@^1.x`.

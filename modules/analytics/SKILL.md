@@ -29,7 +29,7 @@ Create a todo per step and work through them in order.
 
 5. **Wire the root.** Wrap the entry point's returned root element in `<AnalyticsProvider>` (from `blueprint.wiring.wrapRoot.importFrom`), placed as the outermost provider (just inside any ErrorBoundary). Add the import. Make this idempotent: if `<AnalyticsProvider>` is already present, skip.
 
-6. **Set up the API key.** Add `EXPO_PUBLIC_AMPLITUDE_KEY=` to `.env` (create `.env` if needed; ensure `.env` is gitignored). Prompt the user with `blueprint.env.EXPO_PUBLIC_AMPLITUDE_KEY.prompt` and paste their key in. If they don't have it yet, leave the placeholder — the wrapper no-ops safely without a key.
+6. **Set up the env vars** (both in `blueprint.env`). Add them to `.env` (create it if needed; ensure `.env` is gitignored): prompt for `EXPO_PUBLIC_AMPLITUDE_KEY` (the wrapper no-ops safely if blank), and **ask whether the Amplitude project is US or EU** and set `EXPO_PUBLIC_AMPLITUDE_SERVER_ZONE` to match — getting the region wrong silently drops every event, so don't skip it. For cloud builds, also set both as **EAS environment variables** (`eas env:create --environment production --name … --value …`), because `.env` is gitignored and is not uploaded to EAS.
 
 7. **Install governance.** The `.github/` files in `blueprint.files` (PR template + the soft analytics-reminder workflow) are copied by step 3. Then **append** `blueprint.governance.agentInstructions.appendFrom` (`analytics-authoring-rule.md`) to the app's `CLAUDE.md` (or `AGENTS.md` if that's what the app uses; create `CLAUDE.md` if neither exists). It is fenced with `BEGIN/END analytics-authoring-rule` markers — replace the block in place on re-sync, never duplicate it.
 

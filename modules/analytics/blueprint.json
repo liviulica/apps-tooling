@@ -23,6 +23,12 @@
       "required": true,
       "prompt": "Paste your Amplitude project API key (Amplitude > Settings > Projects > [project] > API Key):",
       "description": "Amplitude project API key. Public client key — safe to ship in the app bundle."
+    },
+    "EXPO_PUBLIC_AMPLITUDE_SERVER_ZONE": {
+      "required": false,
+      "default": "US",
+      "prompt": "Amplitude data region — US or EU? Must match your project (app.eu.amplitude.com = EU):",
+      "description": "Amplitude data region. MUST match the project's region or events are silently dropped at the wrong data center."
     }
   },
   "files": [
