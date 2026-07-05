@@ -45,8 +45,8 @@ modules/<name>/
 | Module | Status | What it adds |
 |---|---|---|
 | [analytics](./modules/analytics) | ✅ v1 | Product analytics via Amplitude |
-| paywall | planned | Subscriptions / paywall |
-| profile | planned | User profile screen + state |
+| [accounts](./modules/accounts) | 🚧 v0.1 | Accounts + cross-device sync via Supabase (Apple/Google/email OTP) |
+| paywall | planned | Subscriptions / paywall (RevenueCat; webhook stub ships with accounts) |
 | onboarding | planned | First-run onboarding flow |
 
 ## Using a module in an app
