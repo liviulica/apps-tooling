@@ -46,8 +46,8 @@ modules/<name>/
 |---|---|---|
 | [analytics](./modules/analytics) | ✅ v1 | Product analytics via Amplitude |
 | [accounts](./modules/accounts) | 🚧 v0.1 | Accounts + cross-device sync via Supabase (Apple/Google/email OTP) |
+| [onboarding](./modules/onboarding) | 🚧 v0.1 | First-run onboarding engine (step shell + first-run gate; ties into accounts) |
 | paywall | planned | Subscriptions / paywall (RevenueCat; webhook stub ships with accounts) |
-| onboarding | planned | First-run onboarding flow |
 
 ## Using a module in an app
 

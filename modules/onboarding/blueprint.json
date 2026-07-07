@@ -1,0 +1,36 @@
+{
+  "name": "onboarding",
+  "displayName": "Onboarding",
+  "description": "First-run onboarding: a config-driven step shell (progress dots, per-step ✕ skip, fade transitions, onDone) plus a first-run gate. Step content is app-specific; the account step reuses the accounts module's useAccounts().",
+  "version": "0.1.0",
+  "install": {
+    "peer": ["@react-native-async-storage/async-storage"],
+    "notes": [
+      "Step content (welcome, value props, taste/choice pickers, a preparing/handoff beat) is authored per app, the module ships the ENGINE, not the screens.",
+      "The account step depends on the `accounts` module (useAccounts). If an app has no accounts, omit that step."
+    ]
+  },
+  "requires": [
+    {"module": "accounts", "why": "the account step reuses useAccounts(); optional if the app has no accounts"}
+  ],
+  "files": [
+    {"from": "template/lib/onboarding/OnboardingFlow.tsx", "to": "lib/onboarding/OnboardingFlow.tsx", "ownership": "core"},
+    {"from": "template/lib/onboarding/useOnboardingGate.ts", "to": "lib/onboarding/useOnboardingGate.ts", "ownership": "core"},
+    {"from": "template/lib/onboarding/steps/AccountStep.tsx", "to": "lib/onboarding/steps/AccountStep.tsx", "ownership": "app"}
+  ],
+  "wiring": {
+    "gate": {
+      "helper": "useOnboardingGate",
+      "importFrom": "./lib/onboarding/useOnboardingGate",
+      "placement": "app-root",
+      "note": "In the app root (inside providers): render <OnboardingFlow> when !onboarded, else the app. Providers must wrap BOTH so the account step has useAccounts() and steps have theme.",
+      "flagKey": "@<app>_onboarded"
+    }
+  },
+  "verify": [
+    "Fresh install shows onboarding; completion sets the flag and reveals the app",
+    "A second launch skips onboarding",
+    "The account step advances on sign-in and its ✕ skips without an account",
+    "Reduce Motion collapses step transitions to a fade"
+  ]
+}
