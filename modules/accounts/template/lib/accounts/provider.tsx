@@ -83,6 +83,9 @@ export function AccountsProvider({
   const engineRef = useRef<SyncEngine | null>(null);
   const userRef = useRef<AccountsUser | null>(null);
   userRef.current = user;
+  // True while deleteAccount's own sign-out is in flight (suppresses the
+  // duplicate signed_out emission; deletion is one event, not two).
+  const deletingRef = useRef(false);
 
   useEffect(() => {
     if (!supabase) {
@@ -110,7 +113,13 @@ export function AccountsProvider({
         onAuthEvent?.('signed_in', nextUser);
         void engineRef.current?.syncAll(nextUser.id);
       } else if (event === 'SIGNED_OUT') {
-        onAuthEvent?.('signed_out', null);
+        // Deletion signs out as its final step; that sign-out is part of the
+        // deletion, not a user action, so it must not double-report.
+        if (deletingRef.current) {
+          deletingRef.current = false;
+        } else {
+          onAuthEvent?.('signed_out', null);
+        }
       }
     });
 
@@ -155,7 +164,12 @@ export function AccountsProvider({
       };
     }
     onAuthEvent?.('account_deleted', userRef.current);
-    await supabase.auth.signOut();
+    deletingRef.current = true;
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      deletingRef.current = false;
+    }
     return {deleted: true};
   }, [supabase, onAuthEvent]);
 
