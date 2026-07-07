@@ -12,14 +12,14 @@ Worked reference: the DailyBook implementation (`components/onboarding/*`,
 
 ## What you get
 
-- **`OnboardingFlow`** — pass an ordered `steps` array; the shell renders the
+- **`OnboardingFlow`**, pass an ordered `steps` array; the shell renders the
   progress dots, a per-step ✕ skip, the fade between steps, and fires `onDone`
   after the last step. `onStep` / `onSkip` are analytics hooks. `tint` / `track`
   colors theme it.
-- **`useOnboardingGate`** — reads a first-run flag and gives you `complete()`;
+- **`useOnboardingGate`**, reads a first-run flag and gives you `complete()`;
   the app root renders `<OnboardingFlow>` once, then the app. Fail-open on a
   storage error so a user is never trapped.
-- **`steps/AccountStep`** — the wiring that reuses the accounts module's
+- **`steps/AccountStep`**, the wiring that reuses the accounts module's
   `useAccounts()` and advances on sign-in.
 
 ## The pattern

@@ -12,10 +12,10 @@ into the `accounts` module.
 
 ## What this produces in the target app
 
-- `lib/onboarding/OnboardingFlow.tsx` (CORE) — the config-driven shell: progress
+- `lib/onboarding/OnboardingFlow.tsx` (CORE), the config-driven shell: progress
   dots, a per-step ✕ skip, fade transitions, `onDone`.
-- `lib/onboarding/useOnboardingGate.ts` (CORE) — the first-run flag + `complete()`.
-- `lib/onboarding/steps/AccountStep.tsx` (APP) — the account-step wiring example.
+- `lib/onboarding/useOnboardingGate.ts` (CORE), the first-run flag + `complete()`.
+- `lib/onboarding/steps/AccountStep.tsx` (APP), the account-step wiring example.
 - App-authored step components (welcome, value props, taste/choice pickers, a
   preparing/handoff beat) that YOU create with the user.
 - Root wiring that renders onboarding once, then the app.
@@ -61,7 +61,7 @@ Create a todo per step.
 
 5. **Tie the account step to the accounts module.** Mark the account step
    `skippable: true` (the shell renders the ✕ that continues without an account).
-   Inside it, reuse `useAccounts()` from the `accounts` module — the SAME
+   Inside it, reuse `useAccounts()` from the `accounts` module, the SAME
    Apple / Google / email-code calls your Profile account section uses. Do not
    write new auth. `AccountStep` advances automatically when `status` becomes
    `signedIn`. Accounts are optional: onboarding must complete either way.
@@ -79,7 +79,7 @@ Create a todo per step.
    animation) to `complete()`.
 
 7. **Land into value.** The last step (preparing/handoff) should leave the user
-   holding something to do — seed a "Your picks"/"Start here" shelf, pre-select
+   holding something to do, seed a "Your picks"/"Start here" shelf, pre-select
    content, etc. Kick off any downloads in the BACKGROUND; do not make the user
    wait on the preparing screen.
 

@@ -6,7 +6,7 @@
   "install": {
     "peer": ["@react-native-async-storage/async-storage"],
     "notes": [
-      "Step content (welcome, value props, taste/choice pickers, a preparing/handoff beat) is authored per app — the module ships the ENGINE, not the screens.",
+      "Step content (welcome, value props, taste/choice pickers, a preparing/handoff beat) is authored per app, the module ships the ENGINE, not the screens.",
       "The account step depends on the `accounts` module (useAccounts). If an app has no accounts, omit that step."
     ]
   },

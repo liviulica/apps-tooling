@@ -1,5 +1,5 @@
 /**
- * First-run gate (CORE FILE — overwritten on blueprint re-sync).
+ * First-run gate (CORE FILE, overwritten on blueprint re-sync).
  *
  * Reads a first-run flag so the app root can render <OnboardingFlow> once, then
  * the app thereafter. Fail-open: a storage read error is treated as "already

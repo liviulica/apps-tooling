@@ -1,9 +1,9 @@
 /**
- * Account step wiring (APP-OWNED FILE — customize freely).
+ * Account step wiring (APP-OWNED FILE, customize freely).
  *
  * This is the tie between onboarding and the `accounts` module. It reuses the
  * shipped `useAccounts()` (no new auth code): render your app's own styled
- * sign-in UI (Apple / Google / email code — the same calls as your Profile's
+ * sign-in UI (Apple / Google / email code, the same calls as your Profile's
  * account section), and advance automatically once a session exists.
  *
  * Make this step `skippable: true` in your steps array so the shell shows a ✕

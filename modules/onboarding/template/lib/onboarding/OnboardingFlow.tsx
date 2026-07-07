@@ -1,11 +1,11 @@
 /**
- * Onboarding flow shell (CORE FILE — overwritten on blueprint re-sync).
+ * Onboarding flow shell (CORE FILE, overwritten on blueprint re-sync).
  *
  * A generic, config-driven first-run flow: you pass an ordered list of steps;
  * the shell handles the progress indicator, a per-step skip control (✕), the
  * fade between steps, and firing onDone after the last step. The STEP CONTENT
  * is app-specific and lives in your app (welcome, value props, taste pickers,
- * the account step, a preparing/handoff beat) — this file is just the engine.
+ * the account step, a preparing/handoff beat), this file is just the engine.
  *
  * Theme: pass `tint` (active/accent) and `track` (inactive) colors so the shell
  * matches your app; both default to neutral grays.
