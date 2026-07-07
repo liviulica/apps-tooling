@@ -58,7 +58,17 @@ export function createSyncEngine(opts: {
     if (userId == null || disposed) {
       return;
     }
-    await pushNamespace(userId, namespace);
+    try {
+      await pushNamespace(userId, namespace);
+    } catch {
+      // Local-first: a failed push never throws to callers (a rejected flush
+      // would block sign-out; the timer path would be an unhandled
+      // rejection). Re-queue so the data isn't dropped: the next queuePush,
+      // flush, or syncAll retries it.
+      if (!disposed) {
+        pending.set(namespace, userId);
+      }
+    }
   }
 
   return {

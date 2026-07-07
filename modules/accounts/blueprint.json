@@ -82,6 +82,7 @@
     {"from": "template/components/accounts/SignInSection.tsx", "to": "components/accounts/SignInSection.tsx", "ownership": "app"},
     {"from": "template/supabase/migrations/0001_accounts_core.sql", "to": "supabase/migrations/0001_accounts_core.sql", "ownership": "core"},
     {"from": "template/supabase/migrations/0002_shares.sql", "to": "supabase/migrations/0002_shares.sql", "ownership": "core"},
+    {"from": "template/supabase/migrations/0003_shares_hardening.sql", "to": "supabase/migrations/0003_shares_hardening.sql", "ownership": "core"},
     {"from": "template/supabase/functions/_shared/apple.ts", "to": "supabase/functions/_shared/apple.ts", "ownership": "core"},
     {"from": "template/supabase/functions/apple-token-exchange/index.ts", "to": "supabase/functions/apple-token-exchange/index.ts", "ownership": "core"},
     {"from": "template/supabase/functions/delete-account/index.ts", "to": "supabase/functions/delete-account/index.ts", "ownership": "core"},
