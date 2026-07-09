@@ -47,6 +47,7 @@ modules/<name>/
 | [analytics](./modules/analytics) | ✅ v1 | Product analytics via Amplitude |
 | [accounts](./modules/accounts) | 🚧 v0.1 | Accounts + cross-device sync via Supabase (Apple/Google/email OTP) |
 | [onboarding](./modules/onboarding) | 🚧 v0.1 | First-run onboarding engine (step shell + first-run gate; ties into accounts) |
+| [todos](./modules/todos) | ✅ v1 | File-based todo/roadmap system via slash commands (`/todo:add\|list\|done`). No deps; any git repo |
 | paywall | planned | Subscriptions / paywall (RevenueCat; webhook stub ships with accounts) |
 
 ## Using a module in an app
