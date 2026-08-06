@@ -48,6 +48,7 @@ modules/<name>/
 | [accounts](./modules/accounts) | 🚧 v0.1 | Accounts + cross-device sync via Supabase (Apple/Google/email OTP) |
 | [onboarding](./modules/onboarding) | 🚧 v0.1 | First-run onboarding engine (step shell + first-run gate; ties into accounts) |
 | [review-prompt](./modules/review-prompt) | ✅ v1 | Store rating ask (anti-spam ledger, Play-compliant split, in-app feedback to Supabase) |
+| [crash-reporting](./modules/crash-reporting) | ✅ v1 | Firebase Crashlytics behind a lazy consent-gated wrapper, shipped dark until configured |
 | paywall | planned | Subscriptions / paywall (RevenueCat; webhook stub ships with accounts) |
 
 ## Using a module in an app
