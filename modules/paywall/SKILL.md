@@ -82,3 +82,15 @@ gating decision.
 - The server entitlement mirror (webhook + entitlements table) is a later
   phase and lives with the accounts module's `revenuecat-webhook` stub; do
   not build it during setup.
+
+## Onboarding paywall (RevenueCat Paywalls UI), added 2026-08-07
+
+If the app wants a first-run paywall: copy `template/lib/monetization/paywall-ui.ts`,
+install `react-native-purchases-ui` (version-locked to react-native-purchases),
+and call `presentOnboardingPaywall()` at the END of the app's onboarding flow,
+after its final preparation step and before its done-callback. The function
+resolves 'skipped' on every failure (unconfigured, missing module, no offering,
+no dashboard paywall attached, SDK error) — the host flow must simply await it
+and proceed. Port DailyBook's "onboarding paywall ship-dark" tests. The paywall
+CONTENT is built in RevenueCat > Paywalls and attached to the default offering;
+nothing renders until that exists, by design.

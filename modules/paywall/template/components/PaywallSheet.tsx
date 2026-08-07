@@ -1,13 +1,3 @@
-/**
- * Paywall sheet (APP-OWNED FILE — written once, never clobbered on re-sync).
- *
- * This is the worked example from DailyBook: adapt it to your app's design
- * system (theme hook, fonts, haptics, analytics import paths). What must
- * survive the adaptation, because App Review checks it (see
- * paywall-guidelines.md): store-localized prices only, the billed amount as
- * the most prominent price element, auto-renew wording, a Restore purchases
- * affordance, and working Terms + Privacy links.
- */
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {View, Text, TouchableOpacity, ActivityIndicator, Alert, Linking, StyleSheet} from 'react-native';
 import {BottomSheetModal, BottomSheetBackdrop, BottomSheetView} from '@gorhom/bottom-sheet';

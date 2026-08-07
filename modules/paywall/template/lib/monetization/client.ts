@@ -8,7 +8,7 @@
  * Every function is safe to call when no API key is set: monetization simply
  * stays unconfigured and callers get UNCONFIGURED_STATE / empty packages.
  */
-import Purchases, {LOG_LEVEL, type PurchasesPackage} from 'react-native-purchases';
+import type {CustomerInfo, PurchasesPackage} from 'react-native-purchases';
 import {REVENUECAT_API_KEY} from './config';
 import {mapPackages, toEntitlementState} from './packages';
 import {
@@ -18,6 +18,29 @@ import {
   type PurchaseOutcome,
   type RestoreOutcome,
 } from './types';
+
+/**
+ * The SDK, loaded LAZILY and defensively (the translate.ts lesson, fourth
+ * use): react-native-purchases resolves its native module at import time, and
+ * a binary built before it existed — every install of an older build — would
+ * crash AT APP START on a static import. A missing module reads as
+ * "monetization unavailable", which ship-dark already handles.
+ */
+type PurchasesSdk = typeof import('react-native-purchases');
+let sdkModule: PurchasesSdk | null | undefined;
+function getSdk(): PurchasesSdk | null {
+  if (sdkModule === undefined) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      sdkModule = require('react-native-purchases') as PurchasesSdk;
+    } catch {
+      sdkModule = null;
+    }
+  }
+  return sdkModule;
+}
+/** Non-null exactly while `initialized` is true; set once in init(). */
+let Purchases: PurchasesSdk['default'] | null = null;
 
 let initialized = false;
 /** Raw packages by identifier, kept so purchase() can hand the SDK its own object back. */
@@ -39,15 +62,20 @@ export function init(): void {
     }
     return;
   }
+  const sdk = getSdk();
+  if (!sdk) {
+    return;
+  }
+  Purchases = sdk.default;
   // No appUserID: signed-out users purchase under a RevenueCat anonymous id;
   // the provider aliases it to the account id via identify() on sign-in.
   Purchases.configure({apiKey: REVENUECAT_API_KEY});
-  void Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.DEBUG : LOG_LEVEL.WARN);
+  void Purchases.setLogLevel(__DEV__ ? sdk.LOG_LEVEL.DEBUG : sdk.LOG_LEVEL.WARN);
   initialized = true;
 }
 
 export async function getEntitlementState(): Promise<EntitlementState> {
-  if (!initialized) {
+  if (!initialized || !Purchases) {
     return UNCONFIGURED_STATE;
   }
   try {
@@ -60,7 +88,7 @@ export async function getEntitlementState(): Promise<EntitlementState> {
 }
 
 export async function getPlusPackages(): Promise<PlusPackage[]> {
-  if (!initialized) {
+  if (!initialized || !Purchases) {
     return [];
   }
   try {
@@ -77,7 +105,7 @@ export async function getPlusPackages(): Promise<PlusPackage[]> {
 }
 
 export async function purchase(packageIdentifier: string): Promise<PurchaseOutcome> {
-  if (!initialized) {
+  if (!initialized || !Purchases) {
     return {status: 'error', message: 'Monetization is not configured.'};
   }
   let raw = rawPackages.get(packageIdentifier);
@@ -104,7 +132,7 @@ export async function purchase(packageIdentifier: string): Promise<PurchaseOutco
 }
 
 export async function restore(): Promise<RestoreOutcome> {
-  if (!initialized) {
+  if (!initialized || !Purchases) {
     return {status: 'error', message: 'Monetization is not configured.'};
   }
   try {
@@ -119,7 +147,7 @@ export async function restore(): Promise<RestoreOutcome> {
 
 /** Alias the current (possibly anonymous) customer to the account user id. */
 export async function identify(appUserId: string): Promise<void> {
-  if (!initialized) {
+  if (!initialized || !Purchases) {
     return;
   }
   try {
@@ -131,7 +159,7 @@ export async function identify(appUserId: string): Promise<void> {
 
 /** Back to a fresh anonymous customer (on sign-out). */
 export async function resetIdentity(): Promise<void> {
-  if (!initialized) {
+  if (!initialized || !Purchases) {
     return;
   }
   try {
@@ -146,14 +174,15 @@ export async function resetIdentity(): Promise<void> {
 
 /** Entitlement change stream (renewals, restores on other devices, refunds). */
 export function subscribe(listener: (state: EntitlementState) => void): () => void {
-  if (!initialized) {
+  const sdk = Purchases;
+  if (!initialized || !sdk) {
     return () => {};
   }
-  const sdkListener = (info: Parameters<Parameters<typeof Purchases.addCustomerInfoUpdateListener>[0]>[0]) => {
+  const sdkListener = (info: CustomerInfo) => {
     listener(toEntitlementState(info));
   };
-  Purchases.addCustomerInfoUpdateListener(sdkListener);
+  sdk.addCustomerInfoUpdateListener(sdkListener);
   return () => {
-    Purchases.removeCustomerInfoUpdateListener(sdkListener);
+    sdk.removeCustomerInfoUpdateListener(sdkListener);
   };
 }

@@ -17,13 +17,20 @@
     }
   ],
   "install": {
-    "npm": ["react-native-purchases@^10.4.2"],
-    "ios": {"podInstall": true},
+    "npm": [
+      "react-native-purchases@^10.4.2",
+      "react-native-purchases",
+      "react-native-purchases-ui"
+    ],
+    "ios": {
+      "podInstall": true
+    },
     "notes": [
       "10.2.1 is the hard floor on RN 0.79+ (NativeEventEmitter crash fix); the blueprint pins ^10.4.2.",
       "Do NOT add react-native-purchases-ui: it is exact-version-locked to the core SDK, has a rougher new-architecture history, and this module ships a custom paywall instead.",
       "No config plugin exists or is needed (bare or prebuild).",
-      "Real purchases need a development build; Expo Go only offers mock Preview data."
+      "Real purchases need a development build; Expo Go only offers mock Preview data.",
+      "BOTH SDKs are required LAZILY inside their one-door files (client.ts, paywall-ui.ts) \u2014 a static import crashes every binary built before the native modules existed. Never convert to static imports; keep the two packages version-locked to each other."
     ]
   },
   "env": {
@@ -41,19 +48,57 @@
     }
   },
   "files": [
-    {"from": "template/lib/monetization/types.ts", "to": "lib/monetization/types.ts", "ownership": "core"},
-    {"from": "template/lib/monetization/config.ts", "to": "lib/monetization/config.ts", "ownership": "core"},
-    {"from": "template/lib/monetization/client.ts", "to": "lib/monetization/client.ts", "ownership": "core"},
-    {"from": "template/lib/monetization/entitlements.ts", "to": "lib/monetization/entitlements.ts", "ownership": "core"},
-    {"from": "template/lib/monetization/packages.ts", "to": "lib/monetization/packages.ts", "ownership": "core"},
-    {"from": "template/lib/monetization/provider.tsx", "to": "lib/monetization/provider.tsx", "ownership": "core"},
-    {"from": "template/lib/monetization/index.ts", "to": "lib/monetization/index.ts", "ownership": "core"},
-    {"from": "template/lib/monetization/gates.ts", "to": "lib/monetization/gates.ts", "ownership": "app"},
-    {"from": "template/components/PaywallSheet.tsx", "to": "components/PaywallSheet.tsx", "ownership": "app"}
+    {
+      "from": "template/lib/monetization/types.ts",
+      "to": "lib/monetization/types.ts",
+      "ownership": "core"
+    },
+    {
+      "from": "template/lib/monetization/config.ts",
+      "to": "lib/monetization/config.ts",
+      "ownership": "core"
+    },
+    {
+      "from": "template/lib/monetization/client.ts",
+      "to": "lib/monetization/client.ts",
+      "ownership": "core"
+    },
+    {
+      "from": "template/lib/monetization/entitlements.ts",
+      "to": "lib/monetization/entitlements.ts",
+      "ownership": "core"
+    },
+    {
+      "from": "template/lib/monetization/packages.ts",
+      "to": "lib/monetization/packages.ts",
+      "ownership": "core"
+    },
+    {
+      "from": "template/lib/monetization/provider.tsx",
+      "to": "lib/monetization/provider.tsx",
+      "ownership": "core"
+    },
+    {
+      "from": "template/lib/monetization/index.ts",
+      "to": "lib/monetization/index.ts",
+      "ownership": "core"
+    },
+    {
+      "from": "template/lib/monetization/gates.ts",
+      "to": "lib/monetization/gates.ts",
+      "ownership": "app"
+    },
+    {
+      "from": "template/components/PaywallSheet.tsx",
+      "to": "components/PaywallSheet.tsx",
+      "ownership": "app"
+    }
   ],
   "native": {
     "ios": {
-      "capabilities": ["In-App Purchase"],
+      "capabilities": [
+        "In-App Purchase"
+      ],
       "notes": [
         "Bare apps: Xcode > target > Signing & Capabilities > add In-App Purchase.",
         "Autolinking handles the pod; just run pod install."
@@ -61,7 +106,9 @@
     },
     "android": {
       "manifest": [
-        {"permission": "com.android.vending.BILLING"}
+        {
+          "permission": "com.android.vending.BILLING"
+        }
       ],
       "notes": [
         "Prefer launchMode standard/singleTop for the main activity; if the app relies on singleTask for deep links, keep it but verify the sandbox purchase flow completes before changing anything."
@@ -91,14 +138,22 @@
       "importFrom": "./lib/monetization",
       "placement": "inside-accounts-above-ui",
       "placementNote": "Needs appUserId. With the accounts module: a small bridge component inside <AccountsProvider> reads useAccounts().user and passes user?.id ?? null. Without accounts: <MonetizationProvider appUserId={null}>.",
-      "entryCandidates": ["app/_layout.tsx", "App.tsx", "src/App.tsx", "index.tsx"]
+      "entryCandidates": [
+        "app/_layout.tsx",
+        "App.tsx",
+        "src/App.tsx",
+        "index.tsx"
+      ]
     }
   },
   "governance": {
     "policy": "Content is never paywalled; no claw-backs; growth loops and the account are never gated; every gated feature gets a key + copy in gates.ts in the same change; no SDK import outside client.ts; prices only from the store.",
     "agentInstructions": {
       "appendFrom": "template/paywall-authoring-rule.md",
-      "to": ["CLAUDE.md", "AGENTS.md"],
+      "to": [
+        "CLAUDE.md",
+        "AGENTS.md"
+      ],
       "note": "Append (never overwrite); fenced with BEGIN/END markers for in-place re-sync."
     }
   },
