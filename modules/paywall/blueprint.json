@@ -1,0 +1,113 @@
+{
+  "name": "paywall",
+  "displayName": "Paywall (RevenueCat)",
+  "description": "One-entitlement monetization: monthly/annual subscriptions + lifetime unlock via RevenueCat, feature gates that resolve OPEN when unconfigured (ship-dark safety), and a compliant custom paywall sheet. The SDK is confined to client.ts; everything else is SDK-free and testable.",
+  "version": "0.1.0",
+  "provider": "revenuecat",
+  "requires": [
+    {
+      "module": "accounts",
+      "optional": true,
+      "why": "Only for identity: pass the backend user id to <MonetizationProvider appUserId={...}> so signed-out purchases alias to the account on sign-in (Purchases.logIn). Without accounts, pass null; anonymous purchases and Restore still work."
+    },
+    {
+      "module": "analytics",
+      "optional": true,
+      "why": "The paywall example tracks the purchase funnel (Paywall Viewed, Purchase Started/Completed/Failed, Purchases Restored). Without analytics, strip the track() calls from the app-owned PaywallSheet."
+    }
+  ],
+  "install": {
+    "npm": ["react-native-purchases@^10.4.2"],
+    "ios": {"podInstall": true},
+    "notes": [
+      "10.2.1 is the hard floor on RN 0.79+ (NativeEventEmitter crash fix); the blueprint pins ^10.4.2.",
+      "Do NOT add react-native-purchases-ui: it is exact-version-locked to the core SDK, has a rougher new-architecture history, and this module ships a custom paywall instead.",
+      "No config plugin exists or is needed (bare or prebuild).",
+      "Real purchases need a development build; Expo Go only offers mock Preview data."
+    ]
+  },
+  "env": {
+    "EXPO_PUBLIC_REVENUECAT_IOS_KEY": {
+      "scope": "client",
+      "required": false,
+      "prompt": "RevenueCat iOS public SDK key (Project > API keys, appl_...). Leave blank to ship dark:",
+      "description": "Publishable client key, safe to bundle. Empty = monetization off for the build: no paid UI renders and every feature gate resolves open."
+    },
+    "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": {
+      "scope": "client",
+      "required": false,
+      "prompt": "RevenueCat Android public SDK key (goog_...). Leave blank to ship dark:",
+      "description": "Publishable client key, safe to bundle. Same ship-dark behavior as iOS."
+    }
+  },
+  "files": [
+    {"from": "template/lib/monetization/types.ts", "to": "lib/monetization/types.ts", "ownership": "core"},
+    {"from": "template/lib/monetization/config.ts", "to": "lib/monetization/config.ts", "ownership": "core"},
+    {"from": "template/lib/monetization/client.ts", "to": "lib/monetization/client.ts", "ownership": "core"},
+    {"from": "template/lib/monetization/entitlements.ts", "to": "lib/monetization/entitlements.ts", "ownership": "core"},
+    {"from": "template/lib/monetization/packages.ts", "to": "lib/monetization/packages.ts", "ownership": "core"},
+    {"from": "template/lib/monetization/provider.tsx", "to": "lib/monetization/provider.tsx", "ownership": "core"},
+    {"from": "template/lib/monetization/index.ts", "to": "lib/monetization/index.ts", "ownership": "core"},
+    {"from": "template/lib/monetization/gates.ts", "to": "lib/monetization/gates.ts", "ownership": "app"},
+    {"from": "template/components/PaywallSheet.tsx", "to": "components/PaywallSheet.tsx", "ownership": "app"}
+  ],
+  "native": {
+    "ios": {
+      "capabilities": ["In-App Purchase"],
+      "notes": [
+        "Bare apps: Xcode > target > Signing & Capabilities > add In-App Purchase.",
+        "Autolinking handles the pod; just run pod install."
+      ]
+    },
+    "android": {
+      "manifest": [
+        {"permission": "com.android.vending.BILLING"}
+      ],
+      "notes": [
+        "Prefer launchMode standard/singleTop for the main activity; if the app relies on singleTask for deep links, keep it but verify the sandbox purchase flow completes before changing anything."
+      ]
+    }
+  },
+  "dashboards": {
+    "revenuecat": [
+      "Create project; add App Store + Play Store apps with the app's bundle id / package.",
+      "Upload the App Store Connect In-App Purchase Key (StoreKit 2 records NO transactions without it).",
+      "Entitlements: create one (default id 'plus'); attach every product to it.",
+      "Mark any lifetime product NON-consumable (a consumable one-time product gets consumed on SDK 10+ and cannot be restored).",
+      "Offerings: create 'default' with $rc_monthly / $rc_annual / $rc_lifetime packages."
+    ],
+    "appstoreconnect": [
+      "Paid Applications agreement + banking + tax must be Active or getOfferings() returns empty.",
+      "Subscription group + auto-renewing products; lifetime as Non-Consumable.",
+      "The FIRST IAP must be submitted attached to an app version."
+    ],
+    "playconsole": [
+      "Subscriptions + in-app product; upload a BILLING-permission build to a closed track; add license testers and open the tester opt-in URL."
+    ]
+  },
+  "wiring": {
+    "wrapRoot": {
+      "component": "MonetizationProvider",
+      "importFrom": "./lib/monetization",
+      "placement": "inside-accounts-above-ui",
+      "placementNote": "Needs appUserId. With the accounts module: a small bridge component inside <AccountsProvider> reads useAccounts().user and passes user?.id ?? null. Without accounts: <MonetizationProvider appUserId={null}>.",
+      "entryCandidates": ["app/_layout.tsx", "App.tsx", "src/App.tsx", "index.tsx"]
+    }
+  },
+  "governance": {
+    "policy": "Content is never paywalled; no claw-backs; growth loops and the account are never gated; every gated feature gets a key + copy in gates.ts in the same change; no SDK import outside client.ts; prices only from the store.",
+    "agentInstructions": {
+      "appendFrom": "template/paywall-authoring-rule.md",
+      "to": ["CLAUDE.md", "AGENTS.md"],
+      "note": "Append (never overwrite); fenced with BEGIN/END markers for in-place re-sync."
+    }
+  },
+  "verify": [
+    "npx tsc --noEmit passes in the app",
+    "App unit tests cover: unconfigured state resolves every gate open; configured-without-entitlement locks; package mapping keeps store price strings verbatim",
+    "pod install succeeds and RNPurchases appears in Podfile.lock",
+    "grep confirms react-native-purchases is imported ONLY in lib/monetization/client.ts",
+    "A keyless build shows no paid UI anywhere (ship-dark check)",
+    "With sandbox keys: purchase, restore, kill-app-offline persistence, and signed-out-purchase-then-sign-in merge all verified on device (see the app's monetization-setup-remaining doc)"
+  ]
+}
