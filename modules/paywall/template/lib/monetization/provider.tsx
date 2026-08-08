@@ -66,25 +66,36 @@ export function MonetizationProvider({
   const [packages, setPackages] = useState<PlusPackage[]>([]);
   const [loadingPackages, setLoadingPackages] = useState(false);
   const lastUserIdRef = useRef<string | null>(null);
+  // Fences BOTH async entitlement writers (initial fetch, identity bridge):
+  // the newest generation owns the state, so a slow anonymous fetch cannot
+  // overwrite the signed-in answer and a rapid account switch cannot expose
+  // the previous identity's entitlement (Codex finding).
+  const generationRef = useRef(0);
 
   useEffect(() => {
     init();
     if (!isMonetizationConfigured()) {
       return;
     }
-    let cancelled = false;
+    // FAIL CLOSED while configured: gates must not be open in the window
+    // before the first CustomerInfo resolves (the SDK answers from its local
+    // cache in milliseconds, so a real Plus reader sees nothing relock). The
+    // old UNCONFIGURED initial state resolved gates open during that window,
+    // which a stale closure could then keep forever (Codex finding).
+    setState({isPlus: false, expiresAt: null, configured: true});
+    const generation = ++generationRef.current;
     void getEntitlementState().then(next => {
-      if (!cancelled) {
+      if (generationRef.current === generation) {
         setState(next);
       }
     });
     const unsubscribe = subscribe(next => {
-      if (!cancelled) {
-        setState(next);
-      }
+      // The SDK's own listener is always current-truth; unmount is handled by
+      // unsubscribe itself.
+      setState(next);
     });
     return () => {
-      cancelled = true;
+      generationRef.current++;
       unsubscribe();
     };
   }, []);
@@ -99,13 +110,17 @@ export function MonetizationProvider({
     if (appUserId === previous) {
       return;
     }
+    const generation = ++generationRef.current;
     void (async () => {
       if (appUserId) {
         await identify(appUserId);
       } else if (previous) {
         await resetIdentity();
       }
-      setState(await getEntitlementState());
+      const next = await getEntitlementState();
+      if (generationRef.current === generation) {
+        setState(next);
+      }
     })();
   }, [appUserId]);
 

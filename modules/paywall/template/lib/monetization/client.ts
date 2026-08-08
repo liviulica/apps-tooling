@@ -67,11 +67,17 @@ export function init(): void {
     return;
   }
   Purchases = sdk.default;
-  // No appUserID: signed-out users purchase under a RevenueCat anonymous id;
-  // the provider aliases it to the account id via identify() on sign-in.
-  Purchases.configure({apiKey: REVENUECAT_API_KEY});
-  void Purchases.setLogLevel(__DEV__ ? sdk.LOG_LEVEL.DEBUG : sdk.LOG_LEVEL.WARN);
-  initialized = true;
+  try {
+    // No appUserID: signed-out users purchase under a RevenueCat anonymous id;
+    // the provider aliases it to the account id via identify() on sign-in.
+    Purchases.configure({apiKey: REVENUECAT_API_KEY});
+    void Purchases.setLogLevel(__DEV__ ? sdk.LOG_LEVEL.DEBUG : sdk.LOG_LEVEL.WARN);
+    initialized = true;
+  } catch {
+    // A malformed key or a native initialization fault must read as
+    // "monetization unavailable", never take the provider tree down.
+    Purchases = null;
+  }
 }
 
 export async function getEntitlementState(): Promise<EntitlementState> {

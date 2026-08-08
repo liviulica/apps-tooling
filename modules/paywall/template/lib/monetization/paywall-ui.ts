@@ -15,6 +15,7 @@
  */
 import {track} from '../analytics';
 import {isMonetizationConfigured} from './client';
+import {PLUS_ENTITLEMENT} from './types';
 
 type PaywallUiSdk = typeof import('react-native-purchases-ui');
 
@@ -35,8 +36,9 @@ export type OnboardingPaywallResult = 'purchased' | 'restored' | 'dismissed' | '
 
 /**
  * Present the dashboard-configured paywall once, at onboarding's end. The
- * caller always proceeds afterwards; the result only feeds analytics and the
- * entitlement refresh.
+ * caller always proceeds afterwards; the result feeds analytics only — the
+ * entitlement itself updates through the provider's customer-info listener,
+ * not through this return value.
  */
 export async function presentOnboardingPaywall(): Promise<OnboardingPaywallResult> {
   if (!isMonetizationConfigured()) {
@@ -48,7 +50,23 @@ export async function presentOnboardingPaywall(): Promise<OnboardingPaywallResul
   }
   try {
     track('Paywall Viewed', {trigger: 'onboarding', surface: 'revenuecat'});
-    const result = await mod.default.presentPaywall({displayCloseButton: true});
+    // presentPaywallIfNeeded: an already-entitled reader (restored device,
+    // family plan) is never shown a sales screen for what they own.
+    // The race is the Codex-caught hang guard: the SDK gives no signal if its
+    // native promise simply never settles, and onboarding must not die on a
+    // paywall. 45s is long enough for any real purchase flow to have STARTED
+    // (store sheets keep working even if we proceed underneath) and short
+    // enough that a wedged bridge does not brick first run.
+    const result = await Promise.race([
+      mod.default.presentPaywallIfNeeded({
+        requiredEntitlementIdentifier: PLUS_ENTITLEMENT,
+        displayCloseButton: true,
+      }),
+      new Promise<null>(resolve => setTimeout(() => resolve(null), 45_000)),
+    ]);
+    if (result === null) {
+      return 'skipped';
+    }
     switch (result) {
       case mod.PAYWALL_RESULT.PURCHASED:
         track('Purchase Completed', {trigger: 'onboarding', surface: 'revenuecat'});
