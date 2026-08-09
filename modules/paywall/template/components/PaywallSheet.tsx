@@ -1,15 +1,31 @@
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {View, Text, TouchableOpacity, ActivityIndicator, Alert, Linking, StyleSheet} from 'react-native';
 import {BottomSheetModal, BottomSheetBackdrop, BottomSheetView} from '@gorhom/bottom-sheet';
 import {Ionicons as Icon} from '@expo/vector-icons';
-import {useTheme} from '../src/theme';
+// App-side dependencies. Swap these for whatever the app already has: a theme
+// hook, a display font, haptics, and the analytics `track`. `useSheetLayout`
+// exists because a bottom sheet on a wide window (iPad) must be centred and
+// width-capped by NUMERIC margins; if the app is phone-only, delete it and the
+// `style={sheetLayout}` prop with it.
+import {useTheme, useSheetLayout} from '../src/theme';
 import {serif} from '../utils/fonts';
 import {haptics} from '../utils/haptics';
 import {track} from '../lib/analytics';
-import {usePlus, GATE_COPY, PAYWALL_FEATURE_ORDER, type PlusPackage} from '../lib/monetization';
+import {
+  usePlus,
+  annualSavingsPercent,
+  GATE_COPY,
+  PAYWALL_FEATURE_ORDER,
+  type PlusFeature,
+  type PlusPackage,
+} from '../lib/monetization';
 
-/** Where the sheet was opened from; analytics only, never copy. */
-export type PaywallTrigger = 'profile' | `gate:${string}`;
+/**
+ * Where the sheet was opened from. Analytics, and ONE piece of presentation:
+ * a gate trigger lifts its own feature to the top of the benefit list, so the
+ * reader who tapped a locked export sees the export benefit first.
+ */
+export type PaywallTrigger = 'profile' | 'onboarding' | `gate:${string}`;
 
 interface PaywallSheetProps {
   visible: boolean;
@@ -21,17 +37,33 @@ const HIT_SLOP = {top: 8, bottom: 8, left: 8, right: 8};
 // Apple's standard EULA satisfies the Terms link when there is no custom EULA.
 const TERMS_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
 // MUST match the privacy policy URL in App Store Connect before the paywall
-// goes live (docs/monetization-setup-remaining.md).
-const PRIVACY_URL = 'https://chargingpixels.com/dailybook-privacy';
+// goes live, and be a REAL reachable page (App Review checks the link).
+const PRIVACY_URL = 'https://example.com/privacy';
 
 /**
- * The DailyBook Plus offer: the bottom-sheet offer pattern (CompanionSheet),
- * with the gold rule + serif headline because a purchase is a ceremonial
- * moment. Store rules live here too: localized store prices only, billed
- * amount most prominent, restore + terms + privacy always present.
+ * The Plus offer, as a bottom sheet (APP-OWNED FILE — yours to restyle).
+ *
+ * Rename the tier, rewrite every string, change the layout: this file is meant
+ * to be edited. Five things must survive the edit, because App Review checks
+ * four of them and the fifth is how you avoid lying to a customer:
+ *
+ *  1. The billed amount is the most prominent price element, and every price
+ *     is the store's own `priceString`, never composed (3.1.2). A "$3.33 per
+ *     month, billed annually" line divides and reformats a price — that is
+ *     composing one, and this sheet deliberately does not do it.
+ *  2. Auto-renew wording for subscriptions, and NEVER for a lifetime product.
+ *     `renewalNote` keeps them apart.
+ *  3. Restore purchases, Terms and Privacy, all reachable and all real pages.
+ *  4. A free trial is stated ONLY when `pkg.trial` is set, which happens only
+ *     when the store said this customer is eligible (see packages.ts). Do not
+ *     hardcode "1 week free" anywhere in here.
+ *  5. Value claims carry evidence: the savings chip renders only when the
+ *     percentage is computable from real store prices, and disappears
+ *     otherwise. A "Best value" fallback is a claim with nothing behind it.
  */
 export default function PaywallSheet({visible, onDismiss, trigger}: PaywallSheetProps) {
   const {theme} = useTheme();
+  const sheetLayout = useSheetLayout();
   const colors = theme.colors;
   const sheetRef = useRef<BottomSheetModal>(null);
   const {packages, loadingPackages, refreshPackages, purchase, restore, isPlus} = usePlus();
@@ -56,10 +88,48 @@ export default function PaywallSheet({visible, onDismiss, trigger}: PaywallSheet
     packages[0] ??
     null;
 
-  const dismiss = useCallback(() => {
-    track('Paywall Dismissed', {trigger});
+  // "Save 44%" is computed from the store's own numbers; shown on the annual
+  // card as evidence where "Best value" would be a claim.
+  const savings = useMemo(() => annualSavingsPercent(packages), [packages]);
+
+  // A gate trigger leads with the feature the reader just reached for.
+  const featureOrder = useMemo<PlusFeature[]>(() => {
+    const key = trigger.startsWith('gate:') ? (trigger.slice(5) as PlusFeature) : null;
+    if (key && key in GATE_COPY) {
+      return [key, ...PAYWALL_FEATURE_ORDER.filter(f => f !== key)];
+    }
+    return PAYWALL_FEATURE_ORDER;
+  }, [trigger]);
+
+  // One outcome event AND one onDismiss per presentation (review findings):
+  // the native sheet's own onDismiss re-enters after the close button, and it
+  // also fires after a successful purchase/restore already reported its
+  // outcome. Unguarded, that double-counted the funnel exit — and ran the
+  // OWNER's dismiss handler twice, which for onboarding meant completing the
+  // flow twice (two storage writes racing). Every path out of the sheet goes
+  // through fireDismiss, so the owner hears about a presentation exactly once.
+  const outcomeReported = useRef(false);
+  const dismissFired = useRef(false);
+  useEffect(() => {
+    if (visible) {
+      outcomeReported.current = false;
+      dismissFired.current = false;
+    }
+  }, [visible]);
+  const fireDismiss = useCallback(() => {
+    if (dismissFired.current) {
+      return;
+    }
+    dismissFired.current = true;
     onDismiss();
-  }, [onDismiss, trigger]);
+  }, [onDismiss]);
+  const dismiss = useCallback(() => {
+    if (!outcomeReported.current) {
+      outcomeReported.current = true;
+      track('Paywall Dismissed', {trigger});
+    }
+    fireDismiss();
+  }, [fireDismiss, trigger]);
 
   const handlePurchase = useCallback(async () => {
     if (!selected || busy) {
@@ -72,15 +142,16 @@ export default function PaywallSheet({visible, onDismiss, trigger}: PaywallSheet
     setBusy(false);
     if (outcome.status === 'purchased') {
       track('Purchase Completed', {package_type: selected.packageType, trigger});
+      outcomeReported.current = true;
       haptics.success();
-      onDismiss();
+      fireDismiss();
     } else if (outcome.status === 'cancelled') {
       track('Purchase Failed', {package_type: selected.packageType, reason: 'cancelled', trigger});
     } else {
       track('Purchase Failed', {package_type: selected.packageType, reason: 'error', trigger});
       Alert.alert('Something went wrong', outcome.message);
     }
-  }, [selected, busy, purchase, onDismiss, trigger]);
+  }, [selected, busy, purchase, fireDismiss, trigger]);
 
   const handleRestore = useCallback(async () => {
     if (busy) {
@@ -91,16 +162,17 @@ export default function PaywallSheet({visible, onDismiss, trigger}: PaywallSheet
     setBusy(false);
     if (outcome.status === 'restored') {
       track('Purchases Restored', {found: outcome.found});
+      outcomeReported.current = true;
       if (outcome.found) {
         haptics.success();
-        onDismiss();
+        fireDismiss();
       } else {
         Alert.alert('Nothing to restore', 'No previous purchase was found for this store account.');
       }
     } else {
       Alert.alert('Something went wrong', outcome.message);
     }
-  }, [busy, restore, onDismiss]);
+  }, [busy, restore, fireDismiss]);
 
   const renderBackdrop = useCallback(
     (props: any) => (
@@ -111,6 +183,7 @@ export default function PaywallSheet({visible, onDismiss, trigger}: PaywallSheet
 
   return (
     <BottomSheetModal
+      style={sheetLayout}
       ref={sheetRef}
       onDismiss={dismiss}
       backdropComponent={renderBackdrop}
@@ -121,7 +194,7 @@ export default function PaywallSheet({visible, onDismiss, trigger}: PaywallSheet
       <BottomSheetView style={styles.panel} accessibilityViewIsModal>
         <View style={styles.titleBar}>
           <Text style={[styles.eyebrow, {color: colors.textSecondary}]} maxFontSizeMultiplier={1.4}>
-            DailyBook Plus
+            Plus
           </Text>
           <TouchableOpacity
             style={[styles.close, {backgroundColor: colors.separator}]}
@@ -135,15 +208,15 @@ export default function PaywallSheet({visible, onDismiss, trigger}: PaywallSheet
 
         <View style={[styles.goldRule, {backgroundColor: colors.gold}]} />
         <Text style={[styles.headline, {color: colors.text}]} maxFontSizeMultiplier={1.4}>
-          Keep the pages turning
+          Keep going
         </Text>
         <Text style={[styles.explainer, {color: colors.textSecondary}]} maxFontSizeMultiplier={1.4}>
-          Every book in DailyBook is free, and stays free. Plus adds tools for
-          your own library, and keeps a one-person app growing.
+          Everything the app does stays free. Plus adds tools, and keeps a small
+          team building.
         </Text>
 
         <View style={styles.featureList}>
-          {PAYWALL_FEATURE_ORDER.map(key => {
+          {featureOrder.map(key => {
             const copy = GATE_COPY[key];
             return (
               <View key={key} style={styles.featureRow}>
@@ -163,7 +236,7 @@ export default function PaywallSheet({visible, onDismiss, trigger}: PaywallSheet
           <View style={[styles.card, {backgroundColor: colors.background}]}>
             <Icon name="checkmark-circle" size={20} color={colors.success} />
             <Text style={[styles.thanksText, {color: colors.text}]} maxFontSizeMultiplier={1.4}>
-              You already have Plus. Thank you for keeping DailyBook going.
+              You already have Plus. Thank you for the support.
             </Text>
           </View>
         ) : loadingPackages || packages.length === 0 ? (
@@ -195,11 +268,17 @@ export default function PaywallSheet({visible, onDismiss, trigger}: PaywallSheet
                     }}
                     accessibilityRole="button"
                     accessibilityState={{selected: isSelected}}
-                    accessibilityLabel={`${packageTitle(pkg)}, ${pkg.priceString} ${pkg.periodLabel}`}>
-                    {pkg.packageType === 'annual' && (
+                    accessibilityLabel={`${packageTitle(pkg)}, ${pkg.priceString} ${pkg.periodLabel}${
+                      pkg.trial ? `, ${pkg.trial} free to start` : ''
+                    }`}>
+                    {pkg.packageType === 'annual' && savings != null && (
+                      // Evidence or nothing: with no computable saving (a lone
+                      // annual package, or annual NOT cheaper than 12 months)
+                      // there is no chip, because "Best value" would then be
+                      // an unsupported claim (a review finding).
                       <View style={[styles.valueChip, {backgroundColor: colors.gold + '22'}]}>
                         <Text style={[styles.valueChipText, {color: colors.gold}]} maxFontSizeMultiplier={1.2}>
-                          Best value
+                          {`Save ${savings}%`}
                         </Text>
                       </View>
                     )}
@@ -212,6 +291,11 @@ export default function PaywallSheet({visible, onDismiss, trigger}: PaywallSheet
                     <Text style={[styles.packagePeriod, {color: colors.textSecondary}]} maxFontSizeMultiplier={1.4}>
                       {pkg.periodLabel}
                     </Text>
+                    {pkg.trial != null && (
+                      <Text style={[styles.trialLine, {color: colors.gold}]} maxFontSizeMultiplier={1.2}>
+                        {pkg.trial} free
+                      </Text>
+                    )}
                   </TouchableOpacity>
                 );
               })}
@@ -222,21 +306,19 @@ export default function PaywallSheet({visible, onDismiss, trigger}: PaywallSheet
               disabled={busy || !selected}
               onPress={handlePurchase}
               accessibilityRole="button"
-              accessibilityLabel="Continue with the selected plan">
+              accessibilityLabel={ctaLabel(selected)}>
               {busy ? (
                 <ActivityIndicator size="small" color={colors.accentText} />
               ) : (
                 <Text style={[styles.ctaText, {color: colors.accentText}]} maxFontSizeMultiplier={1.4}>
-                  Continue
+                  {ctaLabel(selected)}
                 </Text>
               )}
             </TouchableOpacity>
 
-            {selected && selected.packageType !== 'lifetime' && (
+            {selected && (
               <Text style={[styles.renewalNote, {color: colors.textSecondary}]} maxFontSizeMultiplier={1.4}>
-                {selected.packageType === 'annual'
-                  ? `Renews yearly at ${selected.priceString} until cancelled in your store settings.`
-                  : `Renews monthly at ${selected.priceString} until cancelled in your store settings.`}
+                {renewalNote(selected)}
               </Text>
             )}
           </>
@@ -290,6 +372,36 @@ function packageTitle(pkg: PlusPackage): string {
   }
 }
 
+/**
+ * The button names the action and its cost — "Continue" alone made readers
+ * treat it as disabled. Price text is the store's own string, verbatim.
+ */
+function ctaLabel(pkg: PlusPackage | null): string {
+  if (!pkg) {
+    return 'Continue';
+  }
+  if (pkg.trial) {
+    return `Try ${pkg.trial} free`;
+  }
+  return `Continue for ${pkg.priceString}`;
+}
+
+/**
+ * The line under the button carries the store-rule disclosures: what renews,
+ * at what store price, and that a trial converts unless cancelled. Lifetime
+ * gets the opposite promise, stated rather than implied.
+ */
+function renewalNote(pkg: PlusPackage): string {
+  if (pkg.packageType === 'lifetime') {
+    return 'One payment, yours for good. Nothing renews.';
+  }
+  const period = pkg.packageType === 'annual' ? 'yearly' : 'monthly';
+  if (pkg.trial) {
+    return `${pkg.trial} free, then renews ${period} at ${pkg.priceString} until cancelled in your store settings.`;
+  }
+  return `Renews ${period} at ${pkg.priceString} until cancelled in your store settings.`;
+}
+
 const styles = StyleSheet.create({
   handleHidden: {display: 'none'},
   panel: {paddingHorizontal: 20, paddingTop: 14, paddingBottom: 28},
@@ -324,6 +436,7 @@ const styles = StyleSheet.create({
   // The billed amount is the most prominent price element (App Review 3.1.2).
   packagePrice: {fontSize: 17, fontWeight: '800', marginTop: 2},
   packagePeriod: {fontSize: 11, marginTop: 2},
+  trialLine: {fontSize: 11, fontWeight: '700', marginTop: 3},
   cta: {
     alignItems: 'center',
     justifyContent: 'center',

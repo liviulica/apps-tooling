@@ -1,8 +1,8 @@
 {
   "name": "paywall",
   "displayName": "Paywall (RevenueCat)",
-  "description": "One-entitlement monetization: monthly/annual subscriptions + lifetime unlock via RevenueCat, feature gates that resolve OPEN when unconfigured (ship-dark safety), and a compliant custom paywall sheet. The SDK is confined to client.ts; everything else is SDK-free and testable.",
-  "version": "0.1.0",
+  "description": "One-entitlement monetization: monthly/annual subscriptions + lifetime unlock via RevenueCat, feature gates that resolve OPEN when unconfigured (ship-dark safety), and a compliant in-app paywall sheet that is the ONLY paywall surface (the dashboard-editable remote paywall was tried and retired; see paywall-guidelines.md). Free trials are shown only to customers the store reports as eligible. The SDK is confined to client.ts; everything else is SDK-free and testable.",
+  "version": "1.0.0",
   "provider": "revenuecat",
   "requires": [
     {
@@ -18,19 +18,17 @@
   ],
   "install": {
     "npm": [
-      "react-native-purchases@^10.4.2",
-      "react-native-purchases",
-      "react-native-purchases-ui"
+      "react-native-purchases@^10.7.0"
     ],
     "ios": {
       "podInstall": true
     },
     "notes": [
-      "10.2.1 is the hard floor on RN 0.79+ (NativeEventEmitter crash fix); the blueprint pins ^10.4.2.",
-      "Do NOT add react-native-purchases-ui: it is exact-version-locked to the core SDK, has a rougher new-architecture history, and this module ships a custom paywall instead.",
+      "10.2.1 is the hard floor on RN 0.79+ (NativeEventEmitter crash fix); the blueprint pins ^10.7.0.",
+      "Do NOT add react-native-purchases-ui. This module ships its own paywall; the remote one was adopted for a day and retired (paywall-guidelines.md, 'The remote paywall'), and its pods are dead weight in the binary.",
       "No config plugin exists or is needed (bare or prebuild).",
       "Real purchases need a development build; Expo Go only offers mock Preview data.",
-      "BOTH SDKs are required LAZILY inside their one-door files (client.ts, paywall-ui.ts) \u2014 a static import crashes every binary built before the native modules existed. Never convert to static imports; keep the two packages version-locked to each other."
+      "The SDK is required LAZILY inside client.ts — a static import crashes every binary built before the native module existed. Never convert it to a static import."
     ]
   },
   "env": {
@@ -71,6 +69,16 @@
     {
       "from": "template/lib/monetization/packages.ts",
       "to": "lib/monetization/packages.ts",
+      "ownership": "core"
+    },
+    {
+      "from": "template/lib/monetization/gate-paywall.ts",
+      "to": "lib/monetization/gate-paywall.ts",
+      "ownership": "core"
+    },
+    {
+      "from": "template/lib/monetization/dev-plan.ts",
+      "to": "lib/monetization/dev-plan.ts",
       "ownership": "core"
     },
     {
@@ -126,10 +134,19 @@
     "appstoreconnect": [
       "Paid Applications agreement + banking + tax must be Active or getOfferings() returns empty.",
       "Subscription group + auto-renewing products; lifetime as Non-Consumable.",
-      "The FIRST IAP must be submitted attached to an app version."
+      "The FIRST IAP must be submitted attached to an app version.",
+      "Each product needs a REVIEW SCREENSHOT before it reaches Ready to Submit (one paywall screenshot serves them all).",
+      "Check the product display names in EVERY localization: they print on the customer's purchase sheet and in iOS Settings > Subscriptions forever (a typo shipped this way once).",
+      "Auto-renewable subscriptions require Terms of Use and Privacy Policy links in the App Store METADATA, not only in the app.",
+      "App Privacy: declare Purchases > Purchase History, linked to identity once the customer signs in."
     ],
     "playconsole": [
       "Subscriptions + in-app product; upload a BILLING-permission build to a closed track; add license testers and open the tester opt-in URL."
+    ],
+    "testing": [
+      "A TESTFLIGHT build ignores the Settings sandbox account: it bills the real Apple ID in a no-charge mode ('For testing purposes only'), renews on its own faster schedule (observed: daily), and cannot be cancelled from Manage. Plan lapse tests around that.",
+      "Sandbox proper (App Store / Xcode builds) accelerates a month to ~5 minutes and self-cancels after 6 renewals.",
+      "A stale store session can wedge the first purchase behind an 'Apple Account Verification' prompt naming the real account even when nothing needs verifying. A device restart clears it."
     ]
   },
   "wiring": {
@@ -147,7 +164,7 @@
     }
   },
   "governance": {
-    "policy": "Content is never paywalled; no claw-backs; growth loops and the account are never gated; every gated feature gets a key + copy in gates.ts in the same change; no SDK import outside client.ts; prices only from the store.",
+    "policy": "Content is never paywalled; no claw-backs; growth loops and the account are never gated; every gated feature gets a key + copy in gates.ts in the same change; no SDK import outside client.ts; prices only from the store, never composed; a free trial is claimed only for a customer the store reports ELIGIBLE; value claims (savings badges) render only when computable from real prices.",
     "agentInstructions": {
       "appendFrom": "template/paywall-authoring-rule.md",
       "to": [
@@ -159,10 +176,12 @@
   },
   "verify": [
     "npx tsc --noEmit passes in the app",
-    "App unit tests cover: unconfigured state resolves every gate open; configured-without-entitlement locks; package mapping keeps store price strings verbatim",
-    "pod install succeeds and RNPurchases appears in Podfile.lock",
+    "App unit tests cover: unconfigured state resolves every gate open; configured-without-entitlement locks; package mapping keeps store price strings verbatim; a PAID intro price maps to no trial; an INELIGIBLE account maps to no trial; savings are null when uncomputable",
+    "pod install succeeds, RNPurchases appears in Podfile.lock, and RevenueCatUI does NOT",
     "grep confirms react-native-purchases is imported ONLY in lib/monetization/client.ts",
     "A keyless build shows no paid UI anywhere (ship-dark check)",
-    "With sandbox keys: purchase, restore, kill-app-offline persistence, and signed-out-purchase-then-sign-in merge all verified on device (see the app's monetization-setup-remaining doc)"
+    "The paywall sheet renders every package state: each package selected, in light and dark, with the CTA label and the renewal disclosure following the selection",
+    "With store keys: purchase, restore, kill-app-offline persistence, reinstall recovery, and signed-out-purchase-then-sign-in merge all verified on device",
+    "In the store dashboard: the purchase appears on the customer with the entitlement active, and the anonymous id is listed as an alias of the account id"
   ]
 }

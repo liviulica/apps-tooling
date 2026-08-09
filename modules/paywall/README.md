@@ -68,9 +68,15 @@ the root README. Manual path: follow `SKILL.md` step by step;
   Applications agreement/banking/tax is not Active in ASC, not a bug.
 - The first IAP can only be reviewed attached to an app version.
 - react-native-purchases ≥ 10.2.1 required on RN 0.79+ (NativeEventEmitter
-  crash before that); pinned `^10.4.2` in the blueprint. Skip
-  `react-native-purchases-ui` (exact-version lockstep, rough new-arch
-  history, and it fights a custom design system).
+  crash before that); pinned `^10.7.0` in the blueprint. Do NOT add
+  `react-native-purchases-ui`: it was adopted at every trigger for one day and
+  retired the next (paywall-guidelines.md, "The remote paywall"). Its editor
+  could not reliably express selection state or a light palette, a light-mode
+  device rendered the dark one, and the native sheet follows SYSTEM appearance
+  while apps with more than two themes need their own.
+- Free trials are gated on ELIGIBILITY, not on the product carrying an intro
+  offer. iOS grants one trial per subscription group per account; promising one
+  to an ineligible customer is a billing-promise mismatch (3.1.2).
 - Android: `com.android.vending.BILLING` permission; verify the purchase
   flow under the app's `launchMode` in sandbox (`singleTask` can cancel
   purchases mid-flow; only change it after confirming, since it affects

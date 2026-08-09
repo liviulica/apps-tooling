@@ -1,14 +1,19 @@
 /**
  * Feature gates (APP-OWNED FILE — NOT overwritten on blueprint re-sync).
  *
- * The single source of truth for what DailyBook Plus gates. Rules
+ * The single source of truth for what the paid tier gates. Rules
  * (apps-tooling modules/paywall/paywall-guidelines.md): gate tools, never
  * content; never claw back a feature that shipped free to public users;
  * never gate growth loops (sharing, onboarding). Add a gate here in the same
  * change that builds the feature, with its paywall copy.
  *
- * Content (books, audiobooks, catalog read-along maps) has no gate key on
- * purpose and must never get one.
+ * The keys below are the EXAMPLE set from the app this module was built
+ * against (a reading app). Replace them with yours; keep the shape, which is
+ * one key per capability with the paywall copy beside it, so the paywall can
+ * never advertise a gate that does not exist and a gate can never exist
+ * without copy.
+ *
+ * Whatever the app's content is, it has no key here on purpose.
  */
 
 /** Every Plus-gated capability. Content is not representable here. */
@@ -76,11 +81,14 @@ export const PAYWALL_FEATURE_ORDER: PlusFeature[] = [
 ];
 
 /**
- * Whether a content id names something the READER brought (vs the catalog).
- * Imported TEXTS are `import-*`; imported AUDIOBOOKS are `local-audio-*`
- * (utils/audioImportUtils.ts) — the Codex review caught the gate matching
- * only the first, which let a catalog text + imported audiobook pair align
- * ungated. Every imported-alignment check goes through here.
+ * EXAMPLE of a gate predicate, kept because its bug is instructive.
+ *
+ * This one answers "did the user bring this content themselves", which is what
+ * decides whether the imported-alignment gate applies. It first matched only
+ * one of the two id shapes the app actually mints for user content, so a pair
+ * built from one of each slipped through ungated. If a gate depends on WHICH
+ * object it is looking at, write the predicate once, here, and make every call
+ * site go through it — then a missed shape is one fix, not a hunt.
  */
 export function isImportedContentId(id: string | null | undefined): boolean {
   return !!id && (id.startsWith('import-') || id.startsWith('local-audio-'));

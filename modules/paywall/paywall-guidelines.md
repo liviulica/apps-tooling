@@ -153,17 +153,137 @@ same PR. Enforced the same way as analytics: the authoring rule block in the
 app's CLAUDE.md (`template/paywall-authoring-rule.md`) plus PR review.
 Exempt: refactors, styling, docs, content-only changes.
 
-## Worked example: DailyBook Plus
+## Worked example: DailyBook Scholar (shipped 1.5.0, 2026-08)
 
-One entitlement `plus`; products `db_plus_monthly` ($2.99), `db_plus_annual`
-($19.99, "best value", preselected), `db_plus_lifetime` ($59.99,
-non-consumable). Free forever: all books and audiobooks, the reader and
-player, catalog read-along, dictionary, one translation language, the six
-shipped themes, local imports, state sync. Gated: read-along alignment for
-the user's OWN imported book + audio pairs, multi-language translation,
-import cloud backup (flagship, future), alternate icons and new themes.
-Kept free on principle: sharing (growth loop), the existing state sync
-(claw-back). Full reasoning: `daily-book/docs/monetization-research.md`.
+One entitlement `plus`; products `db_scholar_monthly`, `db_scholar_annual`
+(preselected, 1-week free trial) and `db_scholar_lifetime` (NON-consumable).
+US tier prices $2.99 / $19.99 / $49.99; every customer sees their own store's
+localized strings, which is why nothing in the code composes a price.
+
+Free forever: all books, audiobooks and films, the reader and player, catalog
+read-along, dictionary, one translation language, the shipped themes, local
+imports, state sync, sharing. Gated (three at launch, all tool-shaped):
+read-along alignment for the user's OWN imported book + audio pairs, translation
+languages beyond the first, notebook export to Obsidian/Notion/Anki. Kept free
+on principle: sharing (growth loop) and the existing state sync (claw-back).
+
+The shape worth copying: each gate's benefit line lives beside its key in
+`gates.ts`, the paywall renders that list, and a gate trigger lifts its own
+benefit to the top. Full reasoning:
+`daily-book/docs/decisions/monetization-gating.md`.
+
+## The remote paywall: tried, retired, and what it costs to try (2026-08-09)
+
+`react-native-purchases-ui` presents the paywall built in RevenueCat's
+dashboard editor. The pitch is real: copy, layout, pricing emphasis and A/B
+tests change without an app release. The app this module was built against
+adopted it at every trigger on 2026-08-08 and **retired it the next day**,
+removing the dependency. Both calls were made with the paywall in front of a
+reviewer on a physical device, so this section is a measurement, not taste.
+
+What went wrong, in the order it was found:
+
+- **The editor could not reliably express selection state.** Two of three
+  package rows shipped with Selected values inside their Default state, so they
+  looked chosen when they were not. Fixing that left the light palette
+  half-applied, with the selected-row fill behind an override path the
+  dashboard's own assistant reported it could not reach.
+- **A device in light mode rendered the dark palette** after the light values
+  were set. The editor preview disagreed with the device, which is the worst
+  property a remote surface can have: you cannot trust the thing you iterate in.
+- **It follows the SYSTEM appearance, not the app's theme.** Any app with more
+  than light/dark themes (this one has five) will show most of its users a
+  paywall that looks like a different product. No configuration fixes this.
+- **VoiceOver: no selected trait on the package rows, unlabeled close button.**
+  Template limitations, not configuration.
+- **It cannot reorder benefits per trigger.** One dashboard sheet has to speak
+  for every gate, so a reader who tapped a locked export gets a paywall that
+  leads with something else. The local sheet lifts the triggering feature to the
+  top of the list, which is a conversion argument as much as a courtesy.
+- **Every visual tweak needed a device round-trip.** The local sheet is
+  testable in Jest down to its rendered copy.
+
+So the module ships **one surface: the app's own `PaywallSheet`**, at every
+trigger including onboarding. What that gives up, knowingly: remote copy
+iteration and A/B tests without a release. The funnel events that would justify
+building a remote surface again are all still emitted.
+
+**If you do reach for the remote paywall anyway**, the rules that applied then
+still apply: require it LAZILY in its own one-door file (it is a native module,
+and a static import crashes every binary built before the module existed); every
+failure mode — unconfigured keys, missing module, no offering, none attached,
+SDK error — must resolve to "skipped" with the host flow proceeding, because an
+onboarding that can hang on a paywall is worse than no paywall; and
+`PAYWALL_RESULT.NOT_PRESENTED` and `ERROR` are both "skipped". Two traps that
+cost real debugging time there:
+
+- **Do not race `presentPaywallIfNeeded` against a timeout.** That promise is
+  pending for as long as the customer is *reading*, so a timer cannot tell "the
+  bridge wedged" from "they are still deciding". A 45s race resolved
+  "unavailable" underneath the still-open sheet, the gate mounted the local
+  fallback behind it, and dismissing one revealed the other. If a flow needs a
+  bound, bound it in that flow, not in the presenter.
+- **Latch re-entrancy.** A second tap while the native sheet is coming up starts
+  a second presentation, the SDK rejects it, the rejection reads as
+  "unavailable", and the fallback mounts behind the real paywall — the same
+  two-paywall stack through a different door.
+
+## Trial claims: eligibility, not availability (2026-08-09, blocker)
+
+A store product advertises its introductory offer to everyone. On iOS,
+eligibility is **per account**: one free trial per subscription group. So
+`product.introPrice` existing does NOT mean this customer may start a trial, and
+a paywall built from it alone promises "1 week free" to someone Apple will
+charge full price on the very next sheet. That is a billing-promise mismatch and
+a 3.1.2 risk, and it survived one adversarial review before being caught in a
+second.
+
+The module's rule, implemented in `client.ts` + `packages.ts`:
+
+- Ask `Purchases.checkTrialOrIntroductoryPriceEligibility(productIds)` for
+  every product carrying a zero-price intro offer.
+- Only a positively `ELIGIBLE` answer keeps the trial. `UNKNOWN` and any thrown
+  error show plain pricing — the SDK's own documented guidance for UNKNOWN is to
+  display non-intro pricing rather than create a misleading situation.
+- **Android**: the API always answers UNKNOWN there, and Google curates offers
+  per account before the SDK sees them, so the offer's presence IS the answer.
+  `mapPackages(pkgs, null)` means "the store already decided".
+- A **paid** introductory price is not a trial. It maps to no trial at all, so
+  the sheet shows the base price and the store charging less at first is a
+  pleasant surprise rather than a misquote.
+- A multi-cycle free offer spans `cycles × period`. Two cycles of one week is
+  "2 weeks free"; stating one cycle understates the store's own terms.
+
+## Value claims need evidence
+
+The savings badge on an annual package is computed from the two store prices
+(`annualSavingsPercent`), returns null when either is missing or the saving is
+under 5%, and the sheet renders **no badge at all** in that case. The tempting
+fallback — "Best value" whenever the number is unavailable — puts an
+unsupported claim on a package that might be a lone annual with nothing to
+compare against, or genuinely more expensive than twelve monthly payments.
+
+## One dismissal per presentation
+
+A bottom-sheet library fires its own `onDismiss` after your close button
+already ran, and a purchase or restore that closes the sheet gets the same echo.
+Unguarded, that double-counts the funnel exit and runs the OWNER's dismiss
+handler twice — which, when the owner is onboarding, completes onboarding twice
+and races two flag writes. Funnel every exit through one single-fire guard
+(`PaywallSheet`'s `fireDismiss`), and let flows that finish on dismissal keep
+their own guard too.
+
+## Presenting a paywall inside a host flow
+
+Onboarding is the hard case, because it must never trap a first run:
+
+- Prefetch packages while the user is still busy with earlier steps.
+- Present only when there is a real offer: configured, not already entitled,
+  and packages actually present.
+- **A pending fetch is not an empty offering.** Deciding the instant the flow
+  ends means a slow store silently skips the paywall. Wait for the in-flight
+  fetch — with a belt (4s) so the flow can never hang on it.
+- Every way out of the sheet must land the user in the app exactly once.
 
 ## Sources
 
@@ -176,24 +296,3 @@ Kept free on principle: sharing (growth loop), the existing state sync
 - https://developer.apple.com/app-store/review/guidelines/ (3.1.1, 3.1.2)
 - https://developer.apple.com/app-store/subscriptions/
 - https://www.revenuecat.com/docs/platform-resources/apple-platform-resources/app-store-small-business-program
-
-## RevenueCat Paywalls UI (the dashboard-editable paywall), learned 2026-08-07
-
-- `react-native-purchases-ui` presents the paywall built in RevenueCat's
-  dashboard editor (attached to an offering). Use it where iterating without
-  an app release matters most — DailyBook uses it at onboarding's end — and
-  keep the in-app PaywallSheet for feature gates, where the trigger context
-  writes the copy.
-- Require it LAZILY in its own one-door file (DailyBook:
-  `lib/monetization/paywall-ui.ts`), exactly like the purchases SDK: both are
-  native modules, and a static import crashes every binary built before they
-  existed.
-- Every failure mode of a presented paywall — unconfigured keys, missing
-  module, no offering, no paywall attached, SDK error — must resolve to
-  "skipped" and the host flow must proceed. An onboarding that can hang on a
-  paywall is worse than no paywall. `PAYWALL_RESULT.NOT_PRESENTED` and ERROR
-  are both "skipped".
-- Pin the skip contract with tests (DailyBook: monetization.test.ts,
-  "onboarding paywall ship-dark").
-- Pods to expect on iOS: RNPaywalls + RevenueCatUI (+ PurchasesHybridCommonUI),
-  versioned in lockstep with RNPurchases/RevenueCat.

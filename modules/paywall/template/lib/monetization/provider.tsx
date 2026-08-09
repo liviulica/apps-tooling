@@ -27,6 +27,7 @@ import {
   restore as clientRestore,
   subscribe,
 } from './client';
+import {applyPlanOverride, planOverride, subscribePlanOverride, type DevPlan} from './dev-plan';
 import {isFeatureUnlocked} from './entitlements';
 import type {PlusFeature} from './gates';
 import {
@@ -83,19 +84,25 @@ export function MonetizationProvider({
     // old UNCONFIGURED initial state resolved gates open during that window,
     // which a stale closure could then keep forever (Codex finding).
     setState({isPlus: false, expiresAt: null, configured: true});
+    // `cancelled` covers UNMOUNT (and keeps the ref out of cleanup, which the
+    // hooks lint rightly objects to); the generation covers being SUPERSEDED
+    // by the identity bridge below. Both are needed: one is about this
+    // component's life, the other about which answer is newest.
+    let cancelled = false;
     const generation = ++generationRef.current;
     void getEntitlementState().then(next => {
-      if (generationRef.current === generation) {
+      if (!cancelled && generationRef.current === generation) {
         setState(next);
       }
     });
     const unsubscribe = subscribe(next => {
-      // The SDK's own listener is always current-truth; unmount is handled by
-      // unsubscribe itself.
-      setState(next);
+      // The SDK's own listener is always current-truth.
+      if (!cancelled) {
+        setState(next);
+      }
     });
     return () => {
-      generationRef.current++;
+      cancelled = true;
       unsubscribe();
     };
   }, []);
@@ -152,18 +159,29 @@ export function MonetizationProvider({
     return outcome;
   }, []);
 
+  // APP EDIT (upstream to apps-tooling): the developer plan override. Nothing
+  // can set it outside the developer console, whose routes do not exist in a
+  // store build, so applyPlanOverride is the identity function there. Details
+  // and the safety argument: ./dev-plan.ts.
+  const [devPlan, setDevPlan] = useState<DevPlan | null>(() => planOverride());
+  useEffect(() => subscribePlanOverride(() => setDevPlan(planOverride())), []);
+
   const api = useMemo<MonetizationApi>(
-    () => ({
-      available: state.configured,
-      isPlus: state.isPlus,
-      expiresAt: state.expiresAt,
-      packages,
-      loadingPackages,
-      refreshPackages,
-      purchase,
-      restore,
-    }),
-    [state, packages, loadingPackages, refreshPackages, purchase, restore],
+    () =>
+      applyPlanOverride(
+        {
+          available: state.configured,
+          isPlus: state.isPlus,
+          expiresAt: state.expiresAt,
+          packages,
+          loadingPackages,
+          refreshPackages,
+          purchase,
+          restore,
+        },
+        devPlan,
+      ),
+    [state, packages, loadingPackages, refreshPackages, purchase, restore, devPlan],
   );
 
   return (

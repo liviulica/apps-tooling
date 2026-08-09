@@ -5,6 +5,8 @@
  */
 export {MonetizationProvider, usePlus, useFeatureGate} from './provider';
 export {isFeatureUnlocked, resolveEntitlement} from './entitlements';
+export {offerPlus} from './gate-paywall';
+export {annualSavingsPercent} from './packages';
 export {GATE_COPY, PAYWALL_FEATURE_ORDER} from './gates';
 export type {PlusFeature, GateCopy} from './gates';
 export type {

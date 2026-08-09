@@ -8,6 +8,7 @@
  * Every function is safe to call when no API key is set: monetization simply
  * stays unconfigured and callers get UNCONFIGURED_STATE / empty packages.
  */
+import {Platform} from 'react-native';
 import type {CustomerInfo, PurchasesPackage} from 'react-native-purchases';
 import {REVENUECAT_API_KEY} from './config';
 import {mapPackages, toEntitlementState} from './packages';
@@ -104,10 +105,55 @@ export async function getPlusPackages(): Promise<PlusPackage[]> {
     for (const pkg of available) {
       rawPackages.set(pkg.identifier, pkg);
     }
-    return mapPackages(available);
+    return mapPackages(available, await trialEligibility(available));
   } catch {
     return [];
   }
+}
+
+/**
+ * Which of these products' free trials THIS store account may actually start.
+ *
+ * A product carries its introductory offer for everyone, but on iOS
+ * eligibility is per account (one trial per subscription group), so showing
+ * the offer to an ineligible reader promises "1 week free" and charges the
+ * full price on Apple's very next sheet — a billing-promise mismatch and an
+ * App Review 3.1.2 risk. The SDK's own guidance for UNKNOWN is to display
+ * the non-intro pricing, so anything not positively ELIGIBLE is left out,
+ * and an eligibility-check failure hides trials rather than promising one.
+ *
+ * Android returns null: Google curates offers per account before they reach
+ * the SDK (and this API always answers UNKNOWN there), so on Play the
+ * offer's presence is itself the eligibility answer.
+ */
+async function trialEligibility(
+  available: PurchasesPackage[],
+): Promise<ReadonlySet<string> | null> {
+  if (Platform.OS !== 'ios') {
+    return null;
+  }
+  const eligible = new Set<string>();
+  const candidates = available
+    .filter(pkg => pkg.product.introPrice?.price === 0)
+    .map(pkg => pkg.product.identifier);
+  if (candidates.length === 0 || !Purchases) {
+    return eligible;
+  }
+  try {
+    const sdk = getSdk();
+    const answers = await Purchases.checkTrialOrIntroductoryPriceEligibility(candidates);
+    for (const [productId, answer] of Object.entries(answers)) {
+      if (
+        sdk != null &&
+        answer.status === sdk.INTRO_ELIGIBILITY_STATUS.INTRO_ELIGIBILITY_STATUS_ELIGIBLE
+      ) {
+        eligible.add(productId);
+      }
+    }
+  } catch {
+    // Fall through with whatever was confirmed (nothing): no trial promised.
+  }
+  return eligible;
 }
 
 export async function purchase(packageIdentifier: string): Promise<PurchaseOutcome> {

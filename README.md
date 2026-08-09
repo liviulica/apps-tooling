@@ -49,7 +49,7 @@ modules/<name>/
 | [onboarding](./modules/onboarding) | 🚧 v0.1 | First-run onboarding engine (step shell + first-run gate; ties into accounts) |
 | [review-prompt](./modules/review-prompt) | ✅ v1 | Store rating ask (anti-spam ledger, Play-compliant split, in-app feedback to Supabase) |
 | [crash-reporting](./modules/crash-reporting) | ✅ v1 | Firebase Crashlytics behind a lazy consent-gated wrapper, shipped dark until configured |
-| paywall | planned | Subscriptions / paywall (RevenueCat; webhook stub ships with accounts) |
+| [paywall](./modules/paywall) | ✅ v1 | Subscriptions + lifetime via RevenueCat: ship-dark feature gates, an in-app paywall sheet (the only surface), eligibility-checked free trials |
 
 ## Using a module in an app
 
@@ -60,6 +60,14 @@ modules/<name>/
 3. In the target app, run the skill (e.g. `/setup-analytics`) and follow it.
 
 Or do it by hand using the module's README + `blueprint.json`.
+
+## Cross-cutting notes
+
+- [React Native testing traps (Jest)](./docs/react-native-testing-traps.md) —
+  why a failing provider test hangs instead of failing, `__DEV__` being
+  undefined under Jest while ship-dark code swallows the error, isolated module
+  registries defeating platform helpers, and how to prove a test can fail when
+  there is no unfixed version to run it against.
 
 ## Adding a new module
 

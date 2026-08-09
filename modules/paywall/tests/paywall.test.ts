@@ -1,6 +1,11 @@
 import {describe, expect, it} from 'vitest';
 import {isFeatureUnlocked, resolveEntitlement} from '../template/lib/monetization/entitlements';
-import {mapPackages, toEntitlementState} from '../template/lib/monetization/packages';
+import {
+  annualSavingsPercent,
+  mapPackages,
+  toEntitlementState,
+  trialLength,
+} from '../template/lib/monetization/packages';
 import {GATE_COPY, PAYWALL_FEATURE_ORDER, type PlusFeature} from '../template/lib/monetization/gates';
 import {UNCONFIGURED_STATE} from '../template/lib/monetization/types';
 
@@ -77,10 +82,16 @@ describe('customer info mapping', () => {
 });
 
 describe('package mapping', () => {
-  const pkg = (identifier: string, packageType: string, priceString = '$1.99') => ({
+  const pkg = (
+    identifier: string,
+    packageType: string,
+    priceString = '$1.99',
+    price = 1.99,
+    introPrice: {price: number; periodUnit: string; periodNumberOfUnits: number; cycles?: number} | null = null,
+  ) => ({
     identifier,
     packageType,
-    product: {priceString},
+    product: {identifier: `prod_${identifier}`, priceString, price, introPrice},
   });
 
   it('maps the three sold types and orders annual first', () => {
@@ -104,6 +115,67 @@ describe('package mapping', () => {
   it('keeps the store-localized price string verbatim', () => {
     const mapped = mapPackages([pkg('$rc_monthly', 'MONTHLY', '2,99 €')]);
     expect(mapped[0].priceString).toBe('2,99 €');
+  });
+});
+
+/**
+ * Trials are the sharpest edge in this module. A store product advertises its
+ * introductory offer to EVERYONE, but iOS eligibility is per account (one per
+ * subscription group), so a paywall built from the product alone promises a
+ * free week to customers the store will charge in full. See
+ * paywall-guidelines.md, "Trial claims: eligibility, not availability".
+ */
+describe('trial claims', () => {
+  const annual = (intro: {price: number; periodUnit: string; periodNumberOfUnits: number; cycles?: number} | null) => ({
+    identifier: '$rc_annual',
+    packageType: 'ANNUAL',
+    product: {identifier: 'prod_annual', priceString: '$19.99', price: 19.99, introPrice: intro},
+  });
+  const FREE_WEEK = {price: 0, periodUnit: 'WEEK', periodNumberOfUnits: 1};
+
+  it('an ELIGIBLE account keeps the trial; an ineligible one never sees it', () => {
+    expect(mapPackages([annual(FREE_WEEK)], new Set(['prod_annual']))[0].trial).toBe('1 week');
+    expect(mapPackages([annual(FREE_WEEK)], new Set())[0].trial).toBeNull();
+  });
+
+  it('a null eligibility set means the store already curated offers (Google Play)', () => {
+    expect(mapPackages([annual(FREE_WEEK)], null)[0].trial).toBe('1 week');
+  });
+
+  it('a PAID introductory price is not a trial', () => {
+    const paid = {price: 9.99, periodUnit: 'MONTH', periodNumberOfUnits: 1};
+    expect(mapPackages([annual(paid)], null)[0].trial).toBeNull();
+  });
+
+  it('a multi-cycle free offer states its whole span', () => {
+    expect(mapPackages([annual({...FREE_WEEK, cycles: 2})], null)[0].trial).toBe('2 weeks');
+  });
+
+  it('an unrecognized period unit yields no trial line rather than a wrong one', () => {
+    expect(trialLength('FORTNIGHT', 1)).toBeNull();
+    expect(trialLength('WEEK', 0)).toBeNull();
+    expect(trialLength('DAY', 3)).toBe('3 days');
+  });
+});
+
+describe('savings badge: evidence or nothing', () => {
+  const plus = (packageType: 'annual' | 'monthly', price: number) => ({
+    identifier: `$rc_${packageType}`,
+    packageType,
+    priceString: 'x',
+    periodLabel: 'x',
+    price,
+    trial: null,
+  });
+
+  it('states the store’s own arithmetic', () => {
+    expect(annualSavingsPercent([plus('annual', 99.99), plus('monthly', 14.99)])).toBe(44);
+  });
+
+  it('is null with nothing to compare, or when annual is not actually cheaper', () => {
+    expect(annualSavingsPercent([plus('annual', 99.99)])).toBeNull();
+    expect(annualSavingsPercent([plus('annual', 200), plus('monthly', 14.99)])).toBeNull();
+    expect(annualSavingsPercent([plus('annual', 11.6), plus('monthly', 1)])).toBeNull();
   });
 });
 

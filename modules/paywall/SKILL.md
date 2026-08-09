@@ -83,14 +83,36 @@ gating decision.
   phase and lives with the accounts module's `revenuecat-webhook` stub; do
   not build it during setup.
 
-## Onboarding paywall (RevenueCat Paywalls UI), added 2026-08-07
+## Presenting the paywall in onboarding (updated 2026-08-09)
 
-If the app wants a first-run paywall: copy `template/lib/monetization/paywall-ui.ts`,
-install `react-native-purchases-ui` (version-locked to react-native-purchases),
-and call `presentOnboardingPaywall()` at the END of the app's onboarding flow,
-after its final preparation step and before its done-callback. The function
-resolves 'skipped' on every failure (unconfigured, missing module, no offering,
-no dashboard paywall attached, SDK error) — the host flow must simply await it
-and proceed. Port DailyBook's "onboarding paywall ship-dark" tests. The paywall
-CONTENT is built in RevenueCat > Paywalls and attached to the default offering;
-nothing renders until that exists, by design.
+Use the SAME `PaywallSheet`, at the end of the flow, after the final
+preparation step and before the done-callback. There is no separate remote
+surface to install: `react-native-purchases-ui` was adopted for one day and
+retired (paywall-guidelines.md, "The remote paywall").
+
+The rules the first-run case adds, all of which cost real debugging to find:
+
+- Prefetch packages EARLY (while the user is on an earlier step) via
+  `refreshPackages()`.
+- Present only when there is a real offer: configured, not already entitled,
+  and packages present. Anything else skips silently to the app.
+- **A pending fetch is not an empty offering.** If the flow decides the instant
+  the last step completes, a slow store silently skips the paywall. Wait for the
+  in-flight fetch, with a short belt (4s) so a first run can never hang.
+- Make completion IDEMPOTENT. Sheet libraries echo `onDismiss` after your own
+  close handler, so an unguarded "dismiss finishes onboarding" runs twice and
+  races two flag writes.
+- Port the tests: mount the real flow and assert the skip cases (unconfigured,
+  entitled, empty offering), the pending-fetch case, the belt, and single
+  completion. A first run that can hang or double-complete is worse than no
+  paywall.
+
+## Free trials: ask the store about the CUSTOMER, not the product
+
+`packages.ts` takes an eligibility set and `client.ts` fills it from
+`checkTrialOrIntroductoryPriceEligibility`. Do not bypass it: a product carries
+its intro offer for everyone, but iOS grants one trial per subscription group
+per account, so a paywall built from the product alone promises a free week to
+people the store then charges in full. UNKNOWN and errors mean "show plain
+pricing". Android answers UNKNOWN always and curates offers per account, so pass
+null there.

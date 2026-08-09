@@ -21,6 +21,21 @@ export type PlusPackage = {
   priceString: string;
   /** Localized per-period suffix for display, e.g. "per month". */
   periodLabel: string;
+  /**
+   * Raw store price NUMBER, for arithmetic only (savings percentages,
+   * cheapest-plan sorting). Never format this into display text — the
+   * only price a reader may see is priceString.
+   */
+  price: number;
+  /**
+   * Free-trial length as a plain duration ("1 week", "3 days"), or null when
+   * the store offer carries no free trial. Derived from the store's own
+   * introductory offer, so copy built from it ("1 week free, then …") states
+   * terms the store will actually honor. A PAID introductory price maps to
+   * null on purpose: the sheet then shows only the base price, and the store
+   * charging less at first is a pleasant surprise, never a misquote.
+   */
+  trial: string | null;
 };
 
 /** Normalized entitlement snapshot derived from CustomerInfo. */
