@@ -1,0 +1,29 @@
+{
+  "name": "crash-reporting",
+  "displayName": "Crash reporting (Firebase Crashlytics)",
+  "description": "Native + JS crash reporting behind a lazy app-owned wrapper, consent-gated, shipped dark until the Firebase config files exist.",
+  "version": "1.0.0",
+  "install": {
+    "npm": ["@react-native-firebase/app", "@react-native-firebase/crashlytics"],
+    "ios": {"podInstall": true, "podInstallArgs": "--repo-update"},
+    "notes": [
+      "NATIVE module: dev clients and store builds must be rebuilt. The lazy require in lib/crash is what keeps binaries built BEFORE this module from crashing at app start — never convert it to a static import.",
+      "iOS uses static CocoaPods AGAINST the rnfirebase docs: $RNFirebaseDisableSPM = true + targeted modular_headers (see README). Firebase's CocoaPods distribution stops publishing new versions after October 2026 — a future Firebase upgrade is a real migration, deferred knowingly.",
+      "firebase.json ships ALL auto-collection off; the app enables at runtime from its own privacy switch after settings hydration."
+    ]
+  },
+  "placeholders": [
+    {"in": "native/add_ios_build_phases.rb", "what": "the Xcode target name and app directory"},
+    {"in": "lib/crash/index.ts", "what": "doc-comment references to the app's settings context and decision record"}
+  ],
+  "postInstall": [
+    "Guarded FirebaseApp.configure in AppDelegate (only when the plist is in the bundle).",
+    "Run the adapted add_ios_build_phases.rb (guarded plist-copy + dSYM-upload phases).",
+    "Android: google-services + crashlytics classpaths; apply both plugins only when google-services.json exists.",
+    "Consent wiring: setCrashReportingEnabled(!optOut) after hydration and on every change; settings resets must preserve the opt-out.",
+    "ErrorBoundary recordError hook + dev-only Test crash row behind a confirm alert.",
+    "Prove ship-dark: iOS simulator build AND gradlew assembleDebug green with no config files.",
+    "Owner console steps: Firebase project + iOS/Android apps + drop the two config files + rebuild; then Test crash → relaunch → report visible.",
+    "Update the app's decision records and store-review privacy notes (new third party receives crash data)."
+  ]
+}

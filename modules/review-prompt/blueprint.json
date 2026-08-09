@@ -1,0 +1,29 @@
+{
+  "name": "review-prompt",
+  "displayName": "Review prompt (store rating ask + in-app feedback)",
+  "description": "Store rating ask at happy moments behind an anti-spam ledger, iOS-optional rating gate, Play-compliant direct card on Android, and an in-app feedback path to Supabase.",
+  "version": "1.0.0",
+  "install": {
+    "expo": ["expo-store-review"],
+    "ios": {"podInstall": true},
+    "notes": [
+      "expo-store-review is a NATIVE module: dev clients and store builds must be rebuilt after installing. The lazy require in lib/review/index.ts is what keeps binaries built BEFORE this module from crashing at app start — do not convert it to a static import.",
+      "The gate sheet is iOS-only BY POLICY: Google Play prohibits any question before its rating flow. Read review-prompt-guidelines.md before changing the platform split in either direction.",
+      "The app owner must explicitly choose whether iOS uses the gate at all; no-gate (native sheet only) is the safer default."
+    ]
+  },
+  "placeholders": [
+    {"in": "lib/review/index.ts", "what": "storeReviewUrl(): the iOS App Store id and Android package name"},
+    {"in": "components/review/RateSheet.tsx", "what": "the app name in the sheet copy, the theme/analytics/version import paths"},
+    {"in": "lib/review/feedback.ts", "what": "the env config import (Supabase URL + anon key) and app-version import"},
+    {"in": "supabase/migrations/app_feedback.sql", "what": "renumber into the app's migration sequence"}
+  ],
+  "postInstall": [
+    "Mount <ReviewPromptHost /> once at app root.",
+    "Wire requestReviewAsk('<trigger>') into 1-2 completed-task moments, after their celebration settles.",
+    "Add settings rows: rate (openStoreReviewPage), share feedback (RateSheet startAt=feedback), dev block (forceShowReviewSheet, resetReviewLedger).",
+    "Add the five events to the app's typed analytics union: Review Prompt Shown/Rated/Dismissed, Store Review Opened, Feedback Sent.",
+    "supabase db push the migration; supabase functions deploy app-feedback --no-verify-jwt; probe with a curl POST and an anon select (must return []).",
+    "Port the ledger + orchestrator + sheet tests from DailyBook (__tests__/reviewLedger.test.ts, reviewAsk.test.ts, reviewAskNoModule.test.ts, rateSheet.test.tsx)."
+  ]
+}
