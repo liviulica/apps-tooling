@@ -1,0 +1,29 @@
+{
+  "name": "todos",
+  "displayName": "Todos (file-based roadmap)",
+  "description": "A git-tracked, one-file-per-item todo/roadmap system driven by slash commands (/todo:add, /todo:list, /todo:done). Status is the folder (todos/ vs todos/done/); frontmatter is title/area/author/created. No runtime deps; lives outside the app bundle.",
+  "version": "1.0.0",
+  "install": {
+    "expo": [],
+    "peer": [],
+    "notes": [
+      "No runtime dependencies — this module adds no npm packages and nothing to the app bundle. todos/ lives outside the import graph.",
+      "The author field is resolved at capture time from the GitHub identity: `gh api user -q .login`, falling back to `git config user.name`. gh is optional; without it the field falls back to the git name, and if both are empty the field is omitted."
+    ]
+  },
+  "env": {},
+  "files": [
+    {"from": "template/.claude/commands/todo/add.md", "to": ".claude/commands/todo/add.md", "ownership": "core"},
+    {"from": "template/.claude/commands/todo/list.md", "to": ".claude/commands/todo/list.md", "ownership": "core"},
+    {"from": "template/.claude/commands/todo/done.md", "to": ".claude/commands/todo/done.md", "ownership": "core"},
+    {"from": "template/todos/CLAUDE.md", "to": "todos/CLAUDE.md", "ownership": "app"},
+    {"from": "template/todos/done/.gitkeep", "to": "todos/done/.gitkeep", "ownership": "core"}
+  ],
+  "wiring": {},
+  "verify": [
+    "The three commands exist under .claude/commands/todo/ and show up as /todo:add, /todo:list, /todo:done in Claude Code.",
+    "`/todo:add try the todo system` creates todos/<today>-try-the-todo-system.md with title/area/author/created frontmatter.",
+    "The author field holds the current GitHub handle (matches `gh api user -q .login`).",
+    "`/todo:list` renders the roadmap grouped by area. `/todo:done try` git-moves the file into todos/done/."
+  ]
+}

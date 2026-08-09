@@ -49,6 +49,7 @@ modules/<name>/
 | [onboarding](./modules/onboarding) | 🚧 v0.1 | First-run onboarding engine (step shell + first-run gate; ties into accounts) |
 | [review-prompt](./modules/review-prompt) | ✅ v1 | Store rating ask (anti-spam ledger, Play-compliant split, in-app feedback to Supabase) |
 | [crash-reporting](./modules/crash-reporting) | ✅ v1 | Firebase Crashlytics behind a lazy consent-gated wrapper, shipped dark until configured |
+| [todos](./modules/todos) | ✅ v1 | File-based todo/roadmap system via slash commands (`/todo:add\|list\|done`). No deps; any git repo |
 | [paywall](./modules/paywall) | ✅ v1 | Subscriptions + lifetime via RevenueCat: ship-dark feature gates, an in-app paywall sheet (the only surface), eligibility-checked free trials |
 
 ## Using a module in an app
