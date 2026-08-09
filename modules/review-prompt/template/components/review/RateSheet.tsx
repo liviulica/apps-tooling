@@ -10,10 +10,13 @@ import {
 } from 'react-native';
 import {Ionicons as Icon} from '@expo/vector-icons';
 import {useTheme, goldSeal} from '../../src/theme';
+
+// A sheet on a wide window (iPad) must cap and centre, or the card stretches to
+// 1000pt. If the app has a layout module, take the constant from there.
+const SHEET_MAX_WIDTH = 640;
 import {track} from '../../lib/analytics';
 import {
   markRated,
-  tryNativeReviewSheet,
   recordFeedbackGiven,
   openStoreReviewPage,
   type ReviewTrigger,
@@ -70,9 +73,12 @@ export default function RateSheet({visible, trigger, startAt = 'stars', via = 'g
       setStars(n);
       track('Review Prompt Rated', {stars: n});
       if (n === 5) {
-        // Rated: the app never asks again, whatever Apple's sheet does next.
+        // Rated: the app never asks again. The native StoreKit sheet is NOT
+        // tried anymore (owner call): its display is unverifiable,
+        // and stacking it under a thanks screen whose CTA is the store made
+        // five-star readers face two asks in a row. One path now — the store
+        // write-review page, as the primary button.
         void markRated();
-        void tryNativeReviewSheet();
         setStage('thanks');
       } else {
         setStage('feedback');
@@ -125,7 +131,7 @@ export default function RateSheet({visible, trigger, startAt = 'stars', via = 'g
           {stage === 'stars' && (
             <>
               <Text style={[styles.title, {color: colors.text}]} maxFontSizeMultiplier={1.4}>
-                How is DailyBook so far?
+                How is the app so far?
               </Text>
               <View style={styles.starRow}>
                 {[1, 2, 3, 4, 5].map(n => (
@@ -162,7 +168,7 @@ export default function RateSheet({visible, trigger, startAt = 'stars', via = 'g
                 What should we make better?
               </Text>
               <Text style={[styles.subtitle, {color: colors.textSecondary}]} maxFontSizeMultiplier={1.4}>
-                This goes to the people who build DailyBook, not to the store.
+                This goes to the people who build the app, not to the store.
               </Text>
               <TextInput
                 style={[styles.noteBox, {color: colors.text, borderColor: colors.separator, backgroundColor: colors.background}]}
@@ -208,22 +214,29 @@ export default function RateSheet({visible, trigger, startAt = 'stars', via = 'g
                 Thank you
               </Text>
               <Text style={[styles.thanksLine, {color: colors.textSecondary}]} maxFontSizeMultiplier={1.4}>
-                If DailyBook has earned a place on your shelf, a review helps other readers find it.
+                If the app has earned its place, a review helps other people find it.
               </Text>
-              <TouchableOpacity
-                style={styles.storeLinkRow}
+              {/* The store IS the default action (owner call):
+                  the button a thanked reader presses without thinking should
+                  produce the review, not dismiss the sheet. */}
+              <PrimaryButton
+                label="Write a review"
                 onPress={() => {
                   void openStoreReviewPage('gate');
+                  dismiss();
                 }}
+                accessibilityLabel="Write a review on the App Store"
+              />
+              <TouchableOpacity
+                style={styles.quietAction}
+                onPress={dismiss}
                 hitSlop={HIT_SLOP}
-                accessibilityRole="link"
-                accessibilityLabel="Write a review on the App Store">
-                <Text style={[styles.storeLinkText, {color: colors.accent}]} maxFontSizeMultiplier={1.4}>
-                  Write a review
+                accessibilityRole="button"
+                accessibilityLabel="Not now">
+                <Text style={[styles.quietActionText, {color: colors.textSecondary}]} maxFontSizeMultiplier={1.4}>
+                  Not now
                 </Text>
-                <Icon name="open-outline" size={14} color={colors.accent} />
               </TouchableOpacity>
-              <PrimaryButton label="Done" onPress={dismiss} accessibilityLabel="Done" />
             </>
           )}
 
@@ -247,6 +260,10 @@ export default function RateSheet({visible, trigger, startAt = 'stars', via = 'g
 const styles = StyleSheet.create({
   overlay: {flex: 1, justifyContent: 'flex-end'},
   card: {
+    // Caps + centers on wide windows (iPad); full-width on phones.
+    width: '100%',
+    maxWidth: SHEET_MAX_WIDTH,
+    alignSelf: 'center',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingHorizontal: 24,
@@ -278,12 +295,4 @@ const styles = StyleSheet.create({
   sendFailed: {fontSize: 13, lineHeight: 18, textAlign: 'center'},
   // The one literary flourish: the thank-you reads in the book voice.
   thanksLine: {...serifItalic, fontSize: 16, lineHeight: 23, textAlign: 'center'},
-  storeLinkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    minHeight: 44,
-  },
-  storeLinkText: {fontSize: 15, fontWeight: '600'},
 });

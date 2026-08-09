@@ -27,6 +27,16 @@ and apply to every app this module is vendored into.
    internally. NEVER write "if the sheet did not show, then…" logic — the
    condition is unknowable. If a flow needs a guaranteed path, put a store
    deep link in reach (the gate's thank-you state does this).
+5. **After a gate, prefer the guaranteed path to the unverifiable one**
+   (owner call, shipped 2026-08). This module originally did both after five
+   stars: fire `requestReview()` AND show a thank-you screen with a store
+   link. That stacks two asks on the reader who just said the nicest thing,
+   and the first of them may not even appear. The thank-you screen's PRIMARY
+   button is now the store's write-review page and the native sheet is not
+   fired at all. `tryNativeReviewSheet()` stays exported for apps that want
+   the sheet somewhere else, and its no-signal contract is unchanged.
+   The secondary action is a quiet "Not now": the button a thanked reader
+   presses without thinking should produce the review, not dismiss it.
 
 ## The anti-spam ledger
 

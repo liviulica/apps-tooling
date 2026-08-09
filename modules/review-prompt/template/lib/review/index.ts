@@ -150,14 +150,19 @@ export function _newSessionForTests(): void {
   askedThisSession = false;
 }
 
+// FILL THESE IN when installing the module. The App Store id is the numeric id
+// from App Store Connect; the package name is the Android applicationId.
+const IOS_APP_ID = '0000000000';
+const ANDROID_PACKAGE = 'com.example.app';
+
 /** Write-review page (iOS) / store listing (Android). User-initiated store
  *  visits are allowed on both platforms at any time. Resolved at call time:
  *  Platform.OS read at import time would freeze the wrong store into tests
  *  and into anything else that flips platforms. */
 function storeReviewUrl(): string {
   return Platform.OS === 'android'
-    ? 'market://details?id=app.chargingpixels.dailybook&showAllReviews=true'
-    : 'itms-apps://itunes.apple.com/app/id6782671456?action=write-review';
+    ? `market://details?id=${ANDROID_PACKAGE}&showAllReviews=true`
+    : `itms-apps://itunes.apple.com/app/id${IOS_APP_ID}?action=write-review`;
 }
 
 /**
@@ -168,7 +173,18 @@ function storeReviewUrl(): string {
 export async function openStoreReviewPage(via: 'gate' | 'settings'): Promise<void> {
   track('Store Review Opened', {via});
   await markRated();
-  await Linking.openURL(storeReviewUrl()).catch(() => {});
+  try {
+    await Linking.openURL(storeReviewUrl());
+  } catch {
+    // Android without the Play Store app (sideloads, some tablets): the
+    // market:// scheme has no handler at all. The web listing still reaches
+    // the review box. iOS never lands here (itms-apps always resolves).
+    if (Platform.OS === 'android') {
+      await Linking.openURL(
+        `https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE}&showAllReviews=true`,
+      ).catch(() => {});
+    }
+  }
 }
 
 /**
