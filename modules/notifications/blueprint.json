@@ -1,0 +1,116 @@
+{
+  "name": "notifications",
+  "displayName": "Notifications (local habit reminders)",
+  "description": "Local habit notifications for Expo/React Native: a pre-permission screen that never spends the one system prompt, and a behaviour-timed reminder (last session + 23.5h, fallback hour) whose decision is a PURE function returning a plan. No APNs key, no Firebase, no device tokens, no server, and it works signed out. Remote push is deliberately out of scope until the local tier has proved readers keep the permission; see notification-guidelines.md, 'Local before remote'.",
+  "version": "1.0.0",
+  "provider": "expo-notifications",
+  "requires": [
+    {
+      "module": "analytics",
+      "optional": true,
+      "why": "The priming screen tracks TWO events: what the reader chose in our screen, and what the OS then said. They diverge when someone accepts the priming screen and declines the system dialog, which is the only way to see whether priming is earning its keep. Without analytics, drop the track() calls."
+    },
+    {
+      "module": "onboarding",
+      "optional": true,
+      "why": "The recommended place for the priming screen is late in onboarding, AFTER a choice that implies intent. Without the onboarding module, put the screen after the first completed session instead."
+    }
+  ],
+  "install": {
+    "npm": [
+      "expo-notifications"
+    ],
+    "ios": {
+      "podInstall": true
+    },
+    "notes": [
+      "Use `npx expo install expo-notifications` so the version matches the SDK.",
+      "The module is required LAZILY wherever it is used, and every failure is swallowed. A static import throws at load time in any binary built before the native module existed, which would take down whatever imported it (in DailyBook that is the reading context).",
+      "Local notifications only. Nothing here needs an APNs key, a Firebase project, a device-token table or an edge function.",
+      "expo-go cannot show local notifications reliably on iOS; use a development build to verify.",
+      "iOS Simulator DOES deliver scheduled local notifications, so the timing rules are verifiable without a device."
+    ]
+  },
+  "env": {},
+  "files": [
+    {
+      "from": "template/lib/notifications/streakReminder.ts",
+      "to": "lib/notifications/streakReminder.ts",
+      "ownership": "core",
+      "why": "The pure decision: takes now/last session/streak/enabled, returns a plan. Every rule in the guidelines is a unit test against this file."
+    },
+    {
+      "from": "template/lib/notifications/index.ts",
+      "to": "lib/notifications/index.ts",
+      "ownership": "core",
+      "why": "The only file that touches the scheduler, storage or the OS."
+    },
+    {
+      "from": "template/components/NotificationsPrimingStep.tsx",
+      "to": "components/onboarding/NotificationsStep.tsx",
+      "ownership": "app",
+      "why": "App-owned: the copy, the illustration and the placement are product decisions. Keep the two-button contract (allow raises the system prompt, decline never does)."
+    }
+  ],
+  "native": {
+    "ios": {
+      "capabilities": [],
+      "notes": [
+        "No entitlement is needed for LOCAL notifications. Push Notifications capability is only for remote push, which this module does not do.",
+        "NSUserNotificationsUsageDescription is not a thing; iOS needs no Info.plist string for local notifications."
+      ]
+    },
+    "android": {
+      "manifest": [
+        {
+          "permission": "android.permission.POST_NOTIFICATIONS",
+          "why": "Required from Android 13 (API 33). expo-notifications adds it; verify it survived a prebuild."
+        }
+      ],
+      "notes": [
+        "Android 13+ requires a runtime request, same as iOS, so the priming screen applies on both platforms.",
+        "Set a notification channel before scheduling, or Android silently drops the notification.",
+        "Battery optimisation can delay an exact-time local notification by minutes. Acceptable for a habit reminder; do NOT build anything time-critical on it."
+      ]
+    }
+  },
+  "wiring": {
+    "callAfterEachSession": {
+      "function": "recordSessionEnd + syncStreakReminder",
+      "importFrom": "./lib/notifications",
+      "placement": "wherever the app records that the habit happened",
+      "placementNote": "Fire-and-forget: this runs on ordinary interactions (in DailyBook, every page turn) and must never make one wait on storage or the scheduler. Reschedule on EVERY session, not only when the goal is reached — that is what makes the last-session rule track real behaviour, and it is also what cancels the reminder the moment the goal is met.",
+      "entryCandidates": [
+        "src/state/*ProgressContext.tsx",
+        "src/state/*Context.tsx",
+        "hooks/use*Progress.ts"
+      ]
+    },
+    "primingStep": {
+      "placement": "late in onboarding, after a choice that implies intent",
+      "placementNote": "AFTER the reader has picked interests or content, BEFORE any long 'preparing' step. On answering, persist markNotificationsAsked() always and setStreakRemindersEnabled(granted) only from what the OS said."
+    }
+  },
+  "governance": {
+    "policy": "Never raise the system prompt cold; a decline must never spend it. Never re-raise after a decline (track asked separately from enabled). Cancel the reminder the moment the goal is met. Never claim a streak that does not exist. One reminder per day. One identifier, always replace, never accumulate. Check OS permission at schedule time rather than trusting the stored flag. Services default ON, messages default OFF. Local before remote.",
+    "agentInstructions": {
+      "appendFrom": "template/notification-authoring-rule.md",
+      "to": [
+        "CLAUDE.md",
+        "AGENTS.md"
+      ],
+      "note": "Append (never overwrite); fenced with BEGIN/END markers for in-place re-sync."
+    }
+  },
+  "verify": [
+    "npx tsc --noEmit passes in the app",
+    "Unit tests cover every reason for scheduling NOTHING: disabled, no streak yet, goal already met — and that disabled is checked first",
+    "A test asserts the decline button does NOT call the native permission request. This is the assertion protecting the whole pattern; a broken version looks identical",
+    "A test asserts a double tap raises the prompt ONCE, and that the guard is a ref (a state flag does not apply until the next render, so two taps in one tick both fire)",
+    "A test asserts scheduling reuses ONE identifier, so repeated syncs replace rather than accumulate",
+    "A test asserts nothing is scheduled when the OS reports permission denied, even with the stored flag enabled",
+    "A test asserts the fallback hour is used when there is no session history AND when the computed time has already passed",
+    "Copy check: no '1 days', typographic apostrophes, no em dashes, and the screen promises only what was built",
+    "On a development build or the iOS Simulator: grant permission, read once, confirm exactly one reminder is scheduled at last-session + interval; read again and confirm it MOVED rather than a second appearing; meet the goal and confirm it is gone"
+  ]
+}
