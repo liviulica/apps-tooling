@@ -1,0 +1,84 @@
+{
+  "name": "pulse",
+  "displayName": "Pulse (one command that pulls and analyses app monitoring)",
+  "description": "A single command that pulls crashes, store reviews and ratings, product analytics, revenue and backend health into one dated snapshot, renders a report, and lets the agent narrate it against the previous run. Every source resolves to ok / missing / unavailable, and an unavailable source is never rendered as a zero.",
+  "version": "1.0.0",
+  "install": {
+    "npm": [],
+    "expo": [],
+    "peer": [],
+    "notes": [
+      "No runtime dependencies and nothing in the app bundle. Node 18+ for global fetch; ES256 JWT is signed with node:crypto and gzip with node:zlib.",
+      "CommonJS .js on purpose, never .mjs: a ts-jest/CommonJS suite cannot require an ESM module, so an .mjs source would be untestable. Node runs it directly either way.",
+      "Crashlytics has NO public REST read API. The script cannot fetch it; the slash command gathers it through the Firebase MCP server and hands it over as a JSON file. That asymmetry is deliberate and documented rather than hidden behind a wrapper.",
+      "Sources are all optional. A missing credential makes one source (or one block of one source) unavailable and never fails the run."
+    ]
+  },
+  "env": {
+    "file": ".env.monitoring.local",
+    "why": "NEVER the app's .env. In an Expo/EAS app the client .env is uploaded to the build servers so public keys reach the bundle; a server secret there ships to the build infrastructure. The .env.*.local pattern is already ignored by git and .easignore.",
+    "keys": [
+      "ASC_KEY_ID",
+      "ASC_ISSUER_ID",
+      "ASC_P8_PATH",
+      "ASC_VENDOR_NUMBER",
+      "AMPLITUDE_API_KEY",
+      "AMPLITUDE_SECRET_KEY",
+      "REVENUECAT_SECRET_KEY",
+      "REVENUECAT_PROJECT_ID",
+      "SUPABASE_ACCESS_TOKEN"
+    ]
+  },
+  "files": [
+    {"from": "template/scripts/monitoring/package.json", "to": "scripts/monitoring/package.json", "ownership": "core"},
+    {"from": "template/scripts/monitoring/config.js", "to": "scripts/monitoring/config.js", "ownership": "core"},
+    {"from": "template/scripts/monitoring/metrics.js", "to": "scripts/monitoring/metrics.js", "ownership": "core"},
+    {"from": "template/scripts/monitoring/render.js", "to": "scripts/monitoring/render.js", "ownership": "core"},
+    {"from": "template/scripts/monitoring/dashboard.js", "to": "scripts/monitoring/dashboard.js", "ownership": "core"},
+    {"from": "template/scripts/monitoring/pulse.js", "to": "scripts/monitoring/pulse.js", "ownership": "core"},
+    {"from": "template/scripts/monitoring/sources/appstore.js", "to": "scripts/monitoring/sources/appstore.js", "ownership": "core"},
+    {"from": "template/scripts/monitoring/sources/amplitude.js", "to": "scripts/monitoring/sources/amplitude.js", "ownership": "core"},
+    {"from": "template/scripts/monitoring/sources/revenuecat.js", "to": "scripts/monitoring/sources/revenuecat.js", "ownership": "core"},
+    {"from": "template/scripts/monitoring/sources/supabase.js", "to": "scripts/monitoring/sources/supabase.js", "ownership": "core"},
+    {"from": "template/scripts/monitoring/app-config.js", "to": "scripts/monitoring/app-config.js", "ownership": "app"},
+    {"from": "template/scripts/monitoring/events.js", "to": "scripts/monitoring/events.js", "ownership": "app"},
+    {"from": "template/.claude/commands/pulse.md", "to": ".claude/commands/pulse.md", "ownership": "core"},
+    {"from": "template/.mcp.json", "to": ".mcp.json", "ownership": "core"},
+    {"from": "template/docs/monitoring-setup.md", "to": "docs/monitoring-setup.md", "ownership": "app"},
+    {"from": "template/__tests__/monitoringConfig.test.ts", "to": "__tests__/monitoringConfig.test.ts", "ownership": "core"},
+    {"from": "template/__tests__/monitoringMetrics.test.ts", "to": "__tests__/monitoringMetrics.test.ts", "ownership": "core"},
+    {"from": "template/__tests__/monitoringRender.test.ts", "to": "__tests__/monitoringRender.test.ts", "ownership": "core"},
+    {"from": "template/__tests__/monitoringDashboard.test.ts", "to": "__tests__/monitoringDashboard.test.ts", "ownership": "core"},
+    {"from": "template/__tests__/monitoringPulse.test.ts", "to": "__tests__/monitoringPulse.test.ts", "ownership": "core"},
+    {"from": "template/__tests__/monitoringAppStore.test.ts", "to": "__tests__/monitoringAppStore.test.ts", "ownership": "core"},
+    {"from": "template/__tests__/monitoringAmplitude.test.ts", "to": "__tests__/monitoringAmplitude.test.ts", "ownership": "app"},
+    {"from": "template/__tests__/monitoringRevenueCat.test.ts", "to": "__tests__/monitoringRevenueCat.test.ts", "ownership": "core"},
+    {"from": "template/__tests__/monitoringSupabase.test.ts", "to": "__tests__/monitoringSupabase.test.ts", "ownership": "core"},
+    {"from": "template/__tests__/monitoringCommand.test.ts", "to": "__tests__/monitoringCommand.test.ts", "ownership": "core"}
+  ],
+  "placeholders": [
+    {"in": "scripts/monitoring/app-config.js", "what": "the app's store id, bundle id, Firebase project, Supabase ref and rating storefronts"},
+    {"in": "scripts/monitoring/events.js", "what": "the app's own funnel, engagement and health event names"},
+    {"in": "__tests__/monitoringAmplitude.test.ts", "what": "the path to the app's event taxonomy file, for the drift guard"},
+    {"in": "docs/monitoring-setup.md", "what": "the app's project names and refs in the click paths"}
+  ],
+  "wiring": {
+    "gitignore": [
+      "monitoring/snapshots/",
+      "monitoring/reports/*.html"
+    ],
+    "easignore": [
+      "monitoring/"
+    ],
+    "packageScripts": {
+      "pulse": "node scripts/monitoring/pulse.js"
+    }
+  },
+  "verify": [
+    "`node scripts/monitoring/pulse.js --json --no-write` exits 0 with NO credentials configured, and every source reports status \"unavailable\" with a reason naming its variable. Zero false zeros is the whole point.",
+    "`git check-ignore -v .env.monitoring.local` matches an ignore rule, and monitoring/ is excluded from the build archive.",
+    "The suite passes, including the mutation checks: break the three-state guard in render.js and a named test must die.",
+    "With one credential set, that source reports real numbers while the others still say unavailable.",
+    "`/pulse` in Claude Code gathers crashes through the Firebase MCP server and narrates the snapshot."
+  ]
+}
