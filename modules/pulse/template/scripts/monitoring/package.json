@@ -1,0 +1,4 @@
+{
+  "//": "Scopes these files to CommonJS regardless of the host app's root package.json. Without it, an app (or this repo) declaring \"type\": \"module\" makes every .js here an ES module and `require` throws at load. Keeping CommonJS is deliberate: a ts-jest/CommonJS suite cannot require an ESM module, so an ESM engine would be untestable.",
+  "type": "commonjs"
+}

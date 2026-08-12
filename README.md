@@ -51,6 +51,7 @@ modules/<name>/
 | [crash-reporting](./modules/crash-reporting) | ✅ v1 | Firebase Crashlytics behind a lazy consent-gated wrapper, shipped dark until configured |
 | [todos](./modules/todos) | ✅ v1 | File-based todo/roadmap system via slash commands (`/todo:add\|list\|done`). No deps; any git repo |
 | [paywall](./modules/paywall) | ✅ v1 | Subscriptions + lifetime via RevenueCat: ship-dark feature gates, an in-app paywall sheet (the only surface), eligibility-checked free trials |
+| [pulse](./modules/pulse) | ✅ v1 | One command that pulls crashes, reviews and ratings, analytics, revenue and backend health into a dated snapshot and analyses it. No deps; a source that could not answer is never a zero |
 
 ## Using a module in an app
 
