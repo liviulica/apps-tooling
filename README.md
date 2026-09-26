@@ -70,6 +70,16 @@ Or do it by hand using the module's README + `blueprint.json`.
   undefined under Jest while ship-dark code swallows the error, isolated module
   registries defeating platform helpers, and how to prove a test can fail when
   there is no unfixed version to run it against.
+- [Shipping to an e-ink Android tablet](./docs/e-ink-devices.md) — why a hung
+  app on an e-ink panel looks exactly like a working one and how to tell,
+  which UI patterns the hardware forbids (scrolling, ticking readouts, gray,
+  spinners), the controls the device may simply not have, and adb recipes for
+  driving one.
+- [Over-the-air updates (expo-updates)](./docs/over-the-air-updates.md) — the
+  fingerprint runtime version in a bare project, the generated files that
+  break the build-vs-publish match, why publishing after a version bump
+  reaches nobody, and the second update channel a device with no app store
+  needs (plus what its hash check does NOT prove).
 
 ## Adding a new module
 
