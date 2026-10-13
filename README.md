@@ -81,6 +81,12 @@ Or do it by hand using the module's README + `blueprint.json`.
   reaches nobody, and the second update channel a device with no app store
   needs (plus what its hash check does NOT prove).
 
+- [SEO content pages](./docs/seo-content-pages.md) — turning an app's
+  catalogue into search landing pages: build from the app's own code, check
+  every model-written claim against the source, index only pages that can
+  carry weight, live inside the hosting file limit on purpose, run batches
+  stripped and detached, and measure with consent.
+
 ## Adding a new module
 
 Copy an existing module's shape, fill in `template/`, `blueprint.json`,
